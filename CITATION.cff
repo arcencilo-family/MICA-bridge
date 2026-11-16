@@ -1,0 +1,22 @@
+cff-version: 1.2.0
+message: "If you use this software, please cite the repository and the exact release."
+title: "MICA bridge"
+type: software
+authors:
+  - given-names: Frank
+    family-names: Böhm
+version: "0.1.0"
+license: Apache-2.0
+repository-code: "https://github.com/arcencilo-family/mica-bridge"
+date-released: "2026-11-16"
+abstract: >-
+  A pre-release code snapshot of MICA's bridge: the service that carries an AI
+  agent's declared acts to the MICA machine's readers, and the declaration that sets
+  what each reader is asked. It needs the matching mica-machine release. See the
+  README for the known limits and the tests expected to fail.
+keywords:
+  - artificial intelligence
+  - AI safety
+  - agents
+  - monitoring
+  - evidence

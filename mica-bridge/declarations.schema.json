@@ -1,0 +1,2065 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://arcencilo.local/mica-bridge/declarations-v1.json",
+  "title": "MICA bridge declarations, version 1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "readers",
+    "stakes",
+    "subjects",
+    "routes",
+    "pilot",
+    "notice",
+    "subjectLog",
+    "paths"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "const": 1
+    },
+    "readers": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "readableLoadStates",
+        "logPath",
+        "logKind",
+        "eng",
+        "sig"
+      ],
+      "properties": {
+        "readableLoadStates": {
+          "$ref": "#/$defs/declaredStringList"
+        },
+        "logPath": {
+          "$ref": "#/$defs/declaredString",
+          "description": "AMENDMENT 9 / RULING P. The observed system's log, JSONL — WireOptions.logPath (wire.ts:183). Without this, wire.ts:383-386 pushes Eng and Sig wired:false and NO instrument can ever return ALARM. A DEPLOYMENT FACT (which file, on this box), not a calibration number — still enveloped for one discipline across the schema, per D-4's accepted extension."
+        },
+        "logKind": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/declaredString"
+            },
+            {
+              "properties": {
+                "value": {
+                  "enum": [
+                    "mica",
+                    "witness",
+                    "subject-chain"
+                  ]
+                }
+              }
+            }
+          ],
+          "description": "WireOptions.logKind — WHICH grammar logPath is in. EXPLICIT, never detected. ACT A (the arbiter's ruling 5, 2026-09-22) added \"subject-chain\": src/glue/subject-event-journal.ts's SubjectChainLog, over the bridge's own hash-chained subject log. TAMPER-EVIDENT, NOT INDEPENDENT — the writer, the chainer and the verifier are all mica-bridge."
+        },
+        "eng": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "structureThreshold",
+            "minimumSampleSize"
+          ],
+          "properties": {
+            "structureThreshold": {
+              "$ref": "#/$defs/declaredNumber"
+            },
+            "minimumSampleSize": {
+              "allOf": [
+                {
+                  "$ref": "#/$defs/declaredNumber"
+                },
+                {
+                  "properties": {
+                    "value": {
+                      "type": "integer",
+                      "minimum": 0
+                    }
+                  }
+                }
+              ]
+            },
+            "minimumClassCoverage": {
+              "allOf": [
+                {
+                  "$ref": "#/$defs/declaredNumber"
+                },
+                {
+                  "properties": {
+                    "value": {
+                      "type": "integer",
+                      "minimum": 1
+                    }
+                  }
+                }
+              ],
+              "description": "T11, 2026-10-01. Eng's minimum per-class observation floor: how many observations a declared class must reach before Eng reads it instead of reporting MISSING_CONFIGURATION. OPTIONAL, and deliberately NOT in `required`: until it is declared Eng returns MISSING_CONFIGURATION, which is the honest blind state and not a regression, and requiring it here would refuse an entire otherwise-valid declaration and cost every other reader to enforce one field. INTEGER >= 1 mirrors the runtime loader's validateDeclaredNumber(..., { integer: true, minimum: 1 }) and mica-guard's ENG_POSITIVE_INTEGER_KEYS at the --sensor-config door; a fractional, zero or negative value is refused at the door rather than coming back as MISSING_CONFIGURATION, which would read as caution instead of as the mistake it is. ADMITTED HERE 2026-10-01 because Codex's cold read of the Eng key-set act found the loader accepting a field this schema forbade: a declaration the published schema rejects is a declaration that lies about itself. declarations.test.ts holds the two together."
+            }
+          }
+        },
+        "sig": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "clockToleranceMs",
+            "clockToleranceBasis",
+            "preconditionMap",
+            "reentryMap"
+          ],
+          "properties": {
+            "clockToleranceMs": {
+              "allOf": [
+                {
+                  "$ref": "#/$defs/declaredNumber"
+                },
+                {
+                  "properties": {
+                    "value": {
+                      "type": "number",
+                      "minimum": 0
+                    }
+                  }
+                }
+              ]
+            },
+            "clockToleranceBasis": {
+              "$ref": "#/$defs/declaredString"
+            },
+            "preconditionMap": {
+              "$ref": "#/$defs/declaredEventMap"
+            },
+            "reentryMap": {
+              "$ref": "#/$defs/declaredEventMap"
+            },
+            "clerkStampLag": {
+              "$ref": "#/$defs/declaredString",
+              "description": "ACT B. The declared LAG between a record's arrival and the clerk's stamp on it. OPTIONAL; absent is the pre-Act-B state. A DISCLOSURE, NOT A WIRE: it reaches no instrument, SigConfig has no lag member, and toWireOptions does not carry it. F3 compares ORDERS, not wall clocks, so a lag cannot corrupt its verdict; what it can do is make a promoted F3 mean less than a reader assumes, and the cure is the sentence. Enforcement would have to be built; this field is not it."
+            }
+          }
+        },
+        "narrowK": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "declaredProfile"
+          ],
+          "properties": {
+            "declaredProfile": {
+              "$ref": "#/$defs/declaredStringList",
+              "description": "The declared K constraint profile: a LIST of eventType values, not one class. The SAME list drives both legs — leg 1 checks presence, leg 2 partitions these classes against everything else. REQUIRED once this block exists: without it the reader can only read CANNOT_ASSESS(MISSING_CONFIGURATION) forever, which is the state the item-4 gating exists to keep out of the floor."
+            },
+            "correlationThreshold": {
+              "$ref": "#/$defs/declaredNumber",
+              "description": "LEG 2. AMI below this alarms. Required TOGETHER WITH correlationMinimumConstraintEvents or not at all."
+            },
+            "correlationMinimumConstraintEvents": {
+              "allOf": [
+                {
+                  "$ref": "#/$defs/declaredNumber"
+                },
+                {
+                  "properties": {
+                    "value": {
+                      "type": "integer",
+                      "minimum": 0
+                    }
+                  }
+                }
+              ],
+              "description": "LEG 2. Paired-event count below which leg 2 is not attempted. Required together with correlationThreshold or not at all."
+            },
+            "correlationCeilingMargin": {
+              "$ref": "#/$defs/declaredNumber",
+              "description": "LEG 2, optional. Distance below AMI_MAXIMUM within which the reading counts as AT THE CEILING and reads CANNOT_ASSESS. Absent: the ceiling check DOES NOT RUN and every leg-2 verdict says so. Never treated as passed."
+            },
+            "correlationPermutationSamples": {
+              "allOf": [
+                {
+                  "$ref": "#/$defs/declaredNumber"
+                },
+                {
+                  "properties": {
+                    "value": {
+                      "type": "integer",
+                      "minimum": 1
+                    }
+                  }
+                }
+              ],
+              "description": "LEG 2, report-only. Required together with correlationPermutationSeed; without both, no percentile is produced and the output says so."
+            },
+            "correlationPermutationSeed": {
+              "allOf": [
+                {
+                  "$ref": "#/$defs/declaredNumber"
+                },
+                {
+                  "properties": {
+                    "value": {
+                      "type": "integer"
+                    }
+                  }
+                }
+              ],
+              "description": "LEG 2, report-only. Required together with correlationPermutationSamples."
+            }
+          },
+          "description": "narrow-K's injected profile. OPTIONAL: presence IS the wiring switch in mica-machine wire.ts (the item-4 pattern); absent, the reader is a printed vacancy that composes nothing. DECLARING A PROFILE WHOSE CLASSES NO CALLER YET EMITS HOLDS EVERY ACT — leg 1 alarms on a declared class absent from the record, has no minimum-sample grace, and an ALARM floor holds at every stakes class. The declaration follows the caller, never precedes it."
+        },
+        "narrowW": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "declaredProfile"
+          ],
+          "properties": {
+            "declaredProfile": {
+              "$ref": "#/$defs/declaredStringList",
+              "description": "The declared W inquiry profile: a LIST of eventType values, not one class. The SAME list drives both legs — leg 1 checks presence, leg 2 partitions these classes against everything else. REQUIRED once this block exists: without it the reader can only read CANNOT_ASSESS(MISSING_CONFIGURATION) forever, which is the state the item-4 gating exists to keep out of the floor."
+            },
+            "correlationThreshold": {
+              "$ref": "#/$defs/declaredNumber",
+              "description": "LEG 2. AMI below this alarms. Required TOGETHER WITH correlationMinimumInquiryEvents or not at all."
+            },
+            "correlationMinimumInquiryEvents": {
+              "allOf": [
+                {
+                  "$ref": "#/$defs/declaredNumber"
+                },
+                {
+                  "properties": {
+                    "value": {
+                      "type": "integer",
+                      "minimum": 0
+                    }
+                  }
+                }
+              ],
+              "description": "LEG 2. Paired-event count below which leg 2 is not attempted. Required together with correlationThreshold or not at all."
+            },
+            "correlationCeilingMargin": {
+              "$ref": "#/$defs/declaredNumber",
+              "description": "LEG 2, optional. Distance below AMI_MAXIMUM within which the reading counts as AT THE CEILING and reads CANNOT_ASSESS. Absent: the ceiling check DOES NOT RUN and every leg-2 verdict says so. Never treated as passed."
+            },
+            "correlationPermutationSamples": {
+              "allOf": [
+                {
+                  "$ref": "#/$defs/declaredNumber"
+                },
+                {
+                  "properties": {
+                    "value": {
+                      "type": "integer",
+                      "minimum": 1
+                    }
+                  }
+                }
+              ],
+              "description": "LEG 2, report-only. Required together with correlationPermutationSeed; without both, no percentile is produced and the output says so."
+            },
+            "correlationPermutationSeed": {
+              "allOf": [
+                {
+                  "$ref": "#/$defs/declaredNumber"
+                },
+                {
+                  "properties": {
+                    "value": {
+                      "type": "integer"
+                    }
+                  }
+                }
+              ],
+              "description": "LEG 2, report-only. Required together with correlationPermutationSamples."
+            }
+          },
+          "description": "narrow-W's injected profile. OPTIONAL: presence IS the wiring switch in mica-machine wire.ts (the item-4 pattern); absent, the reader is a printed vacancy that composes nothing. DECLARING A PROFILE WHOSE CLASSES NO CALLER YET EMITS HOLDS EVERY ACT — leg 1 alarms on a declared class absent from the record, has no minimum-sample grace, and an ALARM floor holds at every stakes class. The declaration follows the caller, never precedes it."
+        },
+        "narrowR": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "declaredProfile"
+          ],
+          "properties": {
+            "declaredProfile": {
+              "$ref": "#/$defs/declaredStringList",
+              "description": "The declared R verification profile: a LIST of eventType values, not one class. The SAME list drives both legs — leg 1 checks presence, leg 2 partitions these classes against everything else. REQUIRED once this block exists: without it the reader can only read CANNOT_ASSESS(MISSING_CONFIGURATION) forever, which is the state the item-4 gating exists to keep out of the floor."
+            },
+            "correlationThreshold": {
+              "$ref": "#/$defs/declaredNumber",
+              "description": "LEG 2. AMI below this alarms. Required TOGETHER WITH correlationMinimumVerificationEvents or not at all."
+            },
+            "correlationMinimumVerificationEvents": {
+              "allOf": [
+                {
+                  "$ref": "#/$defs/declaredNumber"
+                },
+                {
+                  "properties": {
+                    "value": {
+                      "type": "integer",
+                      "minimum": 0
+                    }
+                  }
+                }
+              ],
+              "description": "LEG 2. Paired-event count below which leg 2 is not attempted. Required together with correlationThreshold or not at all."
+            },
+            "correlationCeilingMargin": {
+              "$ref": "#/$defs/declaredNumber",
+              "description": "LEG 2, optional. Distance below AMI_MAXIMUM within which the reading counts as AT THE CEILING and reads CANNOT_ASSESS. Absent: the ceiling check DOES NOT RUN and every leg-2 verdict says so. Never treated as passed."
+            },
+            "correlationPermutationSamples": {
+              "allOf": [
+                {
+                  "$ref": "#/$defs/declaredNumber"
+                },
+                {
+                  "properties": {
+                    "value": {
+                      "type": "integer",
+                      "minimum": 1
+                    }
+                  }
+                }
+              ],
+              "description": "LEG 2, report-only. Required together with correlationPermutationSeed; without both, no percentile is produced and the output says so."
+            },
+            "correlationPermutationSeed": {
+              "allOf": [
+                {
+                  "$ref": "#/$defs/declaredNumber"
+                },
+                {
+                  "properties": {
+                    "value": {
+                      "type": "integer"
+                    }
+                  }
+                }
+              ],
+              "description": "LEG 2, report-only. Required together with correlationPermutationSamples."
+            }
+          },
+          "description": "narrow-R's injected profile. OPTIONAL: presence IS the wiring switch in mica-machine wire.ts (the item-4 pattern); absent, the reader is a printed vacancy that composes nothing. DECLARING A PROFILE WHOSE CLASSES NO CALLER YET EMITS HOLDS EVERY ACT — leg 1 alarms on a declared class absent from the record, has no minimum-sample grace, and an ALARM floor holds at every stakes class. The declaration follows the caller, never precedes it."
+        },
+        "narrowT": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "driftTolerance",
+            "minimumEventsPerWindow"
+          ],
+          "description": "narrow-T, the fifth Eng-sibling. OPTIONAL. Carries NO declaredProfile and therefore NO alarm-on-absent-class latch: absent or unusable configuration reads CANNOT_ASSESS(MISSING_CONFIGURATION), never ALARM. NOTE THE INVERTED POLARITY: ami > driftTolerance is the ALARM, because here structure IS the drift. WIRED NOWHERE TODAY: wire.ts has no options.narrowT gate and never calls assessNarrowT (read at bytes 2026-09-25) -- this block makes a declaration carrying readers.narrowT LOAD, it does not make narrow-T READ.",
+          "properties": {
+            "driftTolerance": {
+              "$ref": "#/$defs/declaredNumber",
+              "description": "REQUIRED once this block exists. Adjusted mutual information ABOVE which the signature counts as drifted -> ALARM. No range imposed: calibration belongs to pilot data. Absent, the reader can only ever read CANNOT_ASSESS(MISSING_CONFIGURATION)."
+            },
+            "minimumEventsPerWindow": {
+              "allOf": [
+                {
+                  "$ref": "#/$defs/declaredNumber"
+                },
+                {
+                  "properties": {
+                    "value": {
+                      "type": "integer",
+                      "minimum": 0
+                    }
+                  }
+                }
+              ],
+              "description": "REQUIRED once this block exists. Minimum records that must fall in EACH window for the read to be attempted; below it the permutation model dominates that window's distribution."
+            },
+            "temporalWindowSize": {
+              "allOf": [
+                {
+                  "$ref": "#/$defs/declaredNumber"
+                },
+                {
+                  "properties": {
+                    "value": {
+                      "type": "integer",
+                      "minimum": 1
+                    }
+                  }
+                }
+              ],
+              "description": "OPTIONAL. Fixed window size in records taken from EACH end of the arc, a NUMBER not a list. Absent -> the split is the record's STRUCTURAL HALVES. Records between the two windows are counted, EXCLUDED from the table, and printed."
+            },
+            "driftCeilingMargin": {
+              "$ref": "#/$defs/declaredNumber",
+              "description": "OPTIONAL. Distance below AMI_MAXIMUM (1) within which the reading counts as AT THE CEILING -> CANNOT_ASSESS (a total drift and a benign total phase separation print the identical record). Absent -> the ceiling check DOES NOT RUN and every verdict says so; never treated as passed. Its PRESENCE also gates the class-set guard (ticket T1)."
+            },
+            "driftPermutationSamples": {
+              "allOf": [
+                {
+                  "$ref": "#/$defs/declaredNumber"
+                },
+                {
+                  "properties": {
+                    "value": {
+                      "type": "integer",
+                      "minimum": 0
+                    }
+                  }
+                }
+              ],
+              "description": "OPTIONAL, report-only. Reshuffles used to locate the observed MI within the permutation distribution. Declared together with driftPermutationSeed or not at all. Never affects a verdict."
+            },
+            "driftPermutationSeed": {
+              "allOf": [
+                {
+                  "$ref": "#/$defs/declaredNumber"
+                },
+                {
+                  "properties": {
+                    "value": {
+                      "type": "integer"
+                    }
+                  }
+                }
+              ],
+              "description": "OPTIONAL, report-only. Seed for the reshuffles, injected so the caller owns reproducibility and the sensor holds no hidden state. Declared together with driftPermutationSamples or not at all."
+            }
+          }
+        },
+        "doctorCadence": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "attestationClass"
+          ],
+          "properties": {
+            "attestationClass": {
+              "allOf": [
+                {
+                  "$ref": "#/$defs/declaredEventClass"
+                },
+                {
+                  "properties": {
+                    "value": {
+                      "properties": {
+                        "eventType": {
+                          "const": "DOCTOR_ATTESTED"
+                        }
+                      }
+                    }
+                  }
+                }
+              ],
+              "description": "PINNED to DOCTOR_ATTESTED. It is the one kind on this log written by a second party ABOUT the subject; every other kind is the subject's own act record, and counting one of those as a doctor's visit would let the subject supply its own cadence."
+            },
+            "cadenceBoundSteps": {
+              "allOf": [
+                {
+                  "$ref": "#/$defs/declaredNumber"
+                },
+                {
+                  "properties": {
+                    "value": {
+                      "type": "integer",
+                      "minimum": 1
+                    }
+                  }
+                }
+              ],
+              "description": "OP-1 bound mode. Absent: presence mode, which reads the class's presence and nothing about spacing."
+            }
+          },
+          "description": "OP-1's doctorCadence section. OPTIONAL, same item-4 pattern. DECLARING IT BEFORE THE FIRST ATTESTATION LANDS is a permanent op1 alarm on an absent class. Order: bridge, then the deposit by the doctor's own hand, THEN this block."
+        },
+        "nodeResponse": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "expectationClass",
+            "responseClass",
+            "responseBoundSteps"
+          ],
+          "description": "H12 / OP-3 (src/mica/op3-node-response). OPTIONAL: it is absent from readers.required, and while it is absent OP-3 is NOT WIRED, composes nothing, and the declaration hashes exactly as it did before this field existed. PRESENT, IT IS A DEPLOYMENT DECISION WITH A LATCH: this caller writes TOOL_ATTEMPTED -> TOOL_EXECUTED -> TOOL_RESULT for an act that ran and TOOL_ATTEMPTED -> TOOL_HELD_NOT_EXECUTED for an act that was HELD, with no TOOL_RESULT on the held path ever, and responseClass holds one class — so with responseClass = TOOL_RESULT the first held act raises OP3_CALL_UNANSWERED, an ALARM floor holds at every stakes class, and the finding is recomputed over the whole file on every evaluation. THE CEILING, AND IT IS NOT OPTIONAL READING: this instrument pairs an expectation to the next record of the response class BY SEQUENCE POSITION, never by actionId — the record carries actionId on every line and the instrument does not read it — so what is read is the harness's writing ORDER standing proxy for the harness's actionId binding, and a responseBoundSteps wide enough to reach past one act pairs an attempt to a DIFFERENT act's result and reads clean.",
+          "properties": {
+            "expectationClass": {
+              "$ref": "#/$defs/declaredEventClass",
+              "description": "The (moduleId, eventType) class a response is expected for. Must differ from responseClass; an identical pair reads CANNOT_ASSESS(OP3_PROFILE_VACUOUS) at the instrument, forever."
+            },
+            "responseClass": {
+              "$ref": "#/$defs/declaredEventClass",
+              "description": "The (moduleId, eventType) class that answers it. ONE class only — the instrument's profile has no room for a list, which is why a caller with two closing paths cannot have both counted as answers."
+            },
+            "responseBoundSteps": {
+              "allOf": [
+                {
+                  "$ref": "#/$defs/declaredNumber"
+                },
+                {
+                  "properties": {
+                    "value": {
+                      "type": "integer",
+                      "minimum": 1
+                    }
+                  }
+                }
+              ],
+              "description": "REQUIRED whenever this block is declared, although the instrument tolerates its absence. Absent, leg A switches to ORDER-ONLY, where any later matching response satisfies at unbounded delay — a real mode, and one that must be asked for rather than arrived at by leaving a field out."
+            },
+            "flatness": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "amiFloor",
+                "amiCeilingMargin",
+                "minSample"
+              ],
+              "description": "Leg B. Genuinely optional: absent, leg B reads CANNOT_ASSESS(OP3_FLATNESS_ABSENT) and discloses it, which is a named blind path rather than a changed meaning.",
+              "properties": {
+                "amiFloor": {
+                  "allOf": [
+                    {
+                      "$ref": "#/$defs/declaredNumber"
+                    },
+                    {
+                      "properties": {
+                        "value": {
+                          "type": "number",
+                          "exclusiveMinimum": 0,
+                          "exclusiveMaximum": 1
+                        }
+                      }
+                    }
+                  ]
+                },
+                "amiCeilingMargin": {
+                  "allOf": [
+                    {
+                      "$ref": "#/$defs/declaredNumber"
+                    },
+                    {
+                      "properties": {
+                        "value": {
+                          "type": "number",
+                          "exclusiveMinimum": 0,
+                          "exclusiveMaximum": 1
+                        }
+                      }
+                    }
+                  ]
+                },
+                "minSample": {
+                  "allOf": [
+                    {
+                      "$ref": "#/$defs/declaredNumber"
+                    },
+                    {
+                      "properties": {
+                        "value": {
+                          "type": "integer",
+                          "minimum": 3
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            },
+            "since": {
+              "allOf": [
+                {
+                  "$ref": "#/$defs/declaredNumber"
+                },
+                {
+                  "properties": {
+                    "value": {
+                      "type": "integer",
+                      "minimum": 1
+                    }
+                  }
+                }
+              ],
+              "description": "H12. The sequence number op3 reads FROM, so a window past the end of the log pairs nothing and reports \"0 of N record(s)\" rather than pretending to a reading. OPTIONAL and not in `required`. INTEGER >= 1 mirrors the runtime loader's validateDeclaredNumber(..., { integer: true, minimum: 1 }). ADMITTED HERE 2026-10-02, FOUND BY THE GENERIC SCHEMA<->LOADER PARITY WALK, not by a read of this block: the loader has accepted this field since H12 shipped and this schema forbade it, so a declaration carrying it was one the published schema rejects. ⚠ THE SAME SENTENCE IS IN minimumClassCoverage's description, dated 2026-10-01, written when Codex found ONE instance of this defect. There were THREE in the file at that moment, and the fix that day admitted one key and left the other two. A bounded check found a bounded fault and the lesson generalised no further than the key it was about."
+            }
+          }
+        },
+        "gate4Sunset": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "subject"
+          ],
+          "description": "GATE 4 SUNSET (src/mica/gate4-sunset), declared under T26. OPTIONAL: absent from readers.required, and while it is absent gate 4 is NOT WIRED, composes nothing, and the declaration hashes exactly as it did before this field existed. ⛔ R1 · THIS BLOCK CARRIES NO CLASS LISTS, AND THAT IS THE WHOLE POINT. It says the reader is ON and for which SUBJECT; `to-wire-options` builds the instrument's profile from mica-service.ts's own sunset-kind constants and that subject's id. Four refusals of this reader came from one degree of freedom — class lists typed by a deployer for kinds the BRIDGE ITSELF names. Swapped outcome words, two roles naming one class, a vacuous `resolved: []` that stopped any order ever closing, and a misdeclared moduleId reading as a missing paper are ONE FAMILY. A PROFILE NOBODY TYPES CANNOT BE MISTYPED. ⚠ The reader stays deployment-agnostic — it is still handed classes and knows no kind names — but the hand that fills them is the hand that writes the records, so the two cannot drift without mica-service.ts changing.",
+          "properties": {
+            "subject": {
+              "$ref": "#/$defs/declaredString",
+              "description": "The declared subject whose endings this reader reads. The ONLY identifier in this block: every class the instrument needs is built from it and from mica-service.ts's own sunset-kind constants (GATE4_RESPONSE_ROLE_KINDS / GATE4_INVOCATION_KIND / GATE4_PAPER_ROLE_KINDS)."
+            },
+            "paperFreshnessBound": {
+              "allOf": [
+                {
+                  "$ref": "#/$defs/declaredNumber"
+                }
+              ],
+              "description": "OPTIONAL positive integer K on the record's SEQUENCE axis. Absent means ORDER-ONLY mode, and the reader prints the louder staleness ceiling for it ('a paper logged a million steps ago satisfies order-only'). Calibration is [owed] and the reader supplies no default."
+            }
+          }
+        },
+        "gate1Scope": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "subject"
+          ],
+          "description": "GATE 1 SCOPE, THE ENVELOPE RECORDER (src/mica/gate1-scope), Stop 2. OPTIONAL: absent from readers.required, and while it is absent gate 1 is NOT WIRED and the declaration hashes exactly as it did before this field existed. The gate4Sunset (R1) pattern: it says the reader is ON and for which SUBJECT, and carries no frame of its own — the frame is top-level frame[subject]. NOT EXPRESSIBLE HERE, ENFORCED BY THE LOADER (X20): the subject must be a declared subjects[].subject AND frame must carry it; a reader switched on over no frame would read CANNOT_ASSESS(G1_FRAME_ABSENT) for ever while the census listed it declared. AND (X22, round 2): paths.interestBook must be declared — the reader reads the interest book the bridge writes, not the subject chain. ⚠ THE READER NEVER RETURNS SILENT OR ALARM: every reading is CANNOT_ASSESS with its envelope, because a record of which categories an act TOUCHED is reach, not weight (03a §1, 03b §2).",
+          "properties": {
+            "subject": {
+              "$ref": "#/$defs/declaredString",
+              "description": "The declared subject whose TOOL_ATTEMPTED labels this reader counts. Must have a frame (X20, loader)."
+            }
+          }
+        },
+        "gate2Direction": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "subject"
+          ],
+          "description": "GATE 2 DIRECTION (src/mica/gate2-direction), Stop 2. OPTIONAL: absent from readers.required, and while it is absent gate 2 is NOT WIRED and the declaration hashes exactly as it did before this field existed. The gate1Scope pattern: it says the reader is ON and for which SUBJECT, and carries no basket of its own — the basket is top-level baskets[subject] and the frame is frame[subject]. NOT EXPRESSIBLE HERE, ENFORCED BY THE LOADER (refusal R1): the subject must be a declared subjects[].subject, frame must carry it AND baskets must carry it; a reader switched on over neither would read CANNOT_ASSESS for ever while the census listed it declared. The reader adds no record kind and the bridge writes nothing new for it. TIER 1: with book + witnessMethod it reads the WITNESS'S BOOK OF EFFECTS instead of the subject chain; both absent, it hashes exactly as before.",
+          "properties": {
+            "subject": {
+              "$ref": "#/$defs/declaredString",
+              "description": "The declared subject whose subject-chain records this reader reads through baskets[subject]. Must have a frame and a basket (R1, loader)."
+            },
+            "book": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "value",
+                "basis",
+                "proxy"
+              ],
+              "description": "TIER 1 · OPTIONAL, with witnessMethod or not at all (R16). Absent: Gate 2 reads the subject log, exactly as before. \"witnessBook\": Gate 2 reads paths.witnessBook (required then, R16). NOT EXPRESSIBLE HERE, ENFORCED BY THE LOADER: every class of baskets[subject] names kind CONSEQUENCE with outcome \"<category>:<effect class>\" from the witness's closed vocabulary, bears on that category, and is declared at EG-1 at most (R3 re-scoped; R7's twin).",
+              "properties": {
+                "value": {
+                  "const": "witnessBook"
+                },
+                "basis": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "proxy": {
+                  "type": "boolean"
+                }
+              }
+            },
+            "witnessMethod": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "value",
+                "basis",
+                "proxy"
+              ],
+              "description": "TIER 1 · OPTIONAL, with book or not at all (R16). The method designation, keyed on the METHOD and never on a bare uid: the sha256 of the witness's seeing method. The bridge names Gate 2's record class CONSEQUENCE@<16 hex> from it and the frame's derivation class.",
+              "properties": {
+                "value": {
+                  "type": "string",
+                  "pattern": "^[0-9a-f]{64}$"
+                },
+                "basis": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "proxy": {
+                  "type": "boolean"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "stakes": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "lineClasses",
+        "baseline"
+      ],
+      "properties": {
+        "lineClasses": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "pattern": "^[A-Za-z0-9_]+$"
+          },
+          "description": "ORDERED low->high. Order is load-bearing: stakesSplit() compares indexOf()."
+        },
+        "baseline": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "holdAtOrAbove"
+          ],
+          "properties": {
+            "holdAtOrAbove": {
+              "$ref": "#/$defs/declaredString"
+            }
+          }
+        }
+      }
+    },
+    "subjects": {
+      "$comment": "Z0 (the arbiter 2026-10-17 16:03Z (1); zero-subjects ticket v2, audit 2026-10-18 06:56Z (9)): subjects may be EMPTY - nothing declared; every reader reads that honestly and /guard refuses. Loader-only cross-field rules this schema cannot express: Z2 every routes[] row with role subject is some subject's peerUid; Z3 an active pilot with no subject is refused; Z5 POST /guard only on a declared subject's peerUid row (all at every n); Z4 membership and routes change on a first load (restart) only.",
+      "type": "array",
+      "minItems": 0,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "subject",
+          "toolName",
+          "stakesClass",
+          "peerUid"
+        ],
+        "properties": {
+          "subject": {
+            "type": "string",
+            "minLength": 1,
+            "pattern": "^(?!__proto__$)[A-Za-z0-9_.:-]+$",
+            "description": "Never \"__proto__\" (R-a, loader and schema alike): a subject id is a KEY of frame, and canonical-json rebuilds objects with out[k] = …, which for that one name sets the prototype instead of a key, so the subject's frame would fall outside declarationHash while the bridge still reads it."
+          },
+          "toolName": {
+            "type": "string",
+            "minLength": 1,
+            "pattern": "^[A-Za-z0-9_.:-]+$"
+          },
+          "stakesClass": {
+            "type": "string",
+            "minLength": 1
+          },
+          "peerUid": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "unit": {
+            "type": "string",
+            "minLength": 1,
+            "pattern": "^[A-Za-z0-9@_.:][A-Za-z0-9@_.:-]*(?![\\s\\S])",
+            "description": "S201. No leading \"-\" (it would reach systemctl as an option). Ends in (?![\\s\\S]), not $ (round 3, A7): Python's re — the real witness — lets $ match before a final newline, so 'caller-a\\n' passed this schema while the loader refused it. The systemd unit (without the .service suffix) that runs this subject's CALLER. Optional to load; relay-bridge's cutover refuses a subject without one, because a caller it cannot name is a caller it cannot confirm stopped. Plain data, like toolName."
+          }
+        }
+      }
+    },
+    "routes": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "uid",
+          "role",
+          "allow"
+        ],
+        "properties": {
+          "uid": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "role": {
+            "enum": [
+              "subject",
+              "alerter",
+              "operator",
+              "verifier"
+            ]
+          },
+          "allow": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "method",
+                "path"
+              ],
+              "properties": {
+                "method": {
+                  "enum": [
+                    "GET",
+                    "POST"
+                  ]
+                },
+                "path": {
+                  "enum": [
+                    "/guard",
+                    "/subject-events",
+                    "/status",
+                    "/events",
+                    "/log",
+                    "/explain",
+                    "/sunset-order"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "pilot": {
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "active"
+          ],
+          "properties": {
+            "active": {
+              "const": false
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "active",
+            "sessionId",
+            "expiresAt",
+            "holdAtOrAbove"
+          ],
+          "properties": {
+            "active": {
+              "const": true
+            },
+            "sessionId": {
+              "type": "string",
+              "minLength": 1
+            },
+            "expiresAt": {
+              "type": "string",
+              "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z$",
+              "description": "ISO-8601, UTC, second precision, trailing Z REQUIRED. No offsets, no fractional seconds — one spelling so two readers cannot disagree about an instant."
+            },
+            "holdAtOrAbove": {
+              "$ref": "#/$defs/declaredString"
+            }
+          }
+        }
+      ]
+    },
+    "notice": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "window",
+        "maxPerMinute"
+      ],
+      "properties": {
+        "window": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/declaredNumber"
+            },
+            {
+              "properties": {
+                "value": {
+                  "type": "integer",
+                  "minimum": 1
+                }
+              }
+            }
+          ]
+        },
+        "maxPerMinute": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/declaredNumber"
+            },
+            {
+              "properties": {
+                "value": {
+                  "type": "integer",
+                  "minimum": 1
+                }
+              }
+            }
+          ]
+        }
+      }
+    },
+    "subjectLog": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "maxUnacknowledged",
+        "chainBoundary"
+      ],
+      "description": "AMENDMENT 9 / RULING Q. Governs POST /subject-events' 503 RECORD_NOT_PERSISTED behavior — retryable-and-owed, BOUNDED by this threshold.",
+      "properties": {
+        "maxUnacknowledged": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/declaredNumber"
+            },
+            {
+              "properties": {
+                "value": {
+                  "type": "integer",
+                  "minimum": 1
+                }
+              }
+            }
+          ]
+        },
+        "chainBoundary": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "retiredPath",
+            "retiredRecords",
+            "retiredBytes",
+            "retiredSha256"
+          ],
+          "description": "ACT A / the arbiter's ruling 3, 2026-09-22. The facts the chain's own position-0 SUBJECT_LOG_BOUNDARY record carries: what this chain replaced. THE ARBITER FILLS THESE BY HAND from the rotation's own `sha256sum` and `wc -l`, before the bridge is relayed, and they ride into the chain with the code. retiredPath.value \"\" means FIRST BOOT — no predecessor — and then the other three must be 0/0/\"\". A rename alone is a fact told to a directory listing; this is the same fact told to the chain, and hashed like every other line. ⚠ THE SERVICE RE-READS THE RETIRED FILE AND REFUSES TO WRITE A BOUNDARY THAT DISAGREES WITH DISK. A basis field is a broadcast (register §E.1, 2026-09-21: readableLoadStates' basis named an adapter it had never been tested against); this one is tested before it is believed.",
+          "properties": {
+            "retiredPath": {
+              "$ref": "#/$defs/declaredString"
+            },
+            "retiredRecords": {
+              "allOf": [
+                {
+                  "$ref": "#/$defs/declaredNumber"
+                },
+                {
+                  "properties": {
+                    "value": {
+                      "type": "integer",
+                      "minimum": 0
+                    }
+                  }
+                }
+              ]
+            },
+            "retiredBytes": {
+              "allOf": [
+                {
+                  "$ref": "#/$defs/declaredNumber"
+                },
+                {
+                  "properties": {
+                    "value": {
+                      "type": "integer",
+                      "minimum": 0
+                    }
+                  }
+                }
+              ]
+            },
+            "retiredSha256": {
+              "$ref": "#/$defs/declaredString"
+            }
+          }
+        }
+      }
+    },
+    "paths": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "journal",
+        "eventBook",
+        "subjectLog",
+        "decisionEvents",
+        "floorTrail",
+        "ledger",
+        "history",
+        "noticeDir"
+      ],
+      "patternProperties": {
+        "^(?!(clerkStamps|witnessIntake|witnessBook)$).*$": {
+          "type": "string",
+          "pattern": "^/var/lib/mica-bridge/[A-Za-z0-9_./-]+$"
+        }
+      },
+      "properties": {
+        "journal": {
+          "type": "string"
+        },
+        "eventBook": {
+          "type": "string"
+        },
+        "subjectLog": {
+          "type": "string"
+        },
+        "decisionEvents": {
+          "type": "string",
+          "description": "AMENDMENT 9 / H-1, the eighth paths key. Stage 1's journal schema is NOT paths.eventBook's schema — two books, two schemas, two owners, one writer each. See the Stage 4 design doc W7."
+        },
+        "floorTrail": {
+          "type": "string"
+        },
+        "ledger": {
+          "type": "string"
+        },
+        "history": {
+          "type": "string"
+        },
+        "noticeDir": {
+          "type": "string"
+        },
+        "interestBook": {
+          "type": "string",
+          "pattern": "^/var/lib/mica-bridge/[A-Za-z0-9_][A-Za-z0-9_.-]*\\.jsonl(?![\\s\\S])",
+          "description": "GATE 1 · Stop 2 · round 2 (placement D). OPTIONAL. The INTEREST BOOK: a chained file the BRIDGE writes, one label record per persisted TOOL_ATTEMPTED of a framed subject. Nothing in the bridge's code but Gate 1 reads it; the loader's X23 refuses a readers.logPath naming it, and nothing else enforces that. ROUND 3 (A4): its OWN pattern, the same in loader and schema — ONE FLAT .jsonl FILE directly in /var/lib/mica-bridge/ (no sub-directory, no '.' or '..' name, never a .lock/.quarantine sibling, the salt file or the state dir); the generic patternProperties rule above applies too and is wider. NOT EXPRESSIBLE HERE, ENFORCED BY THE LOADER: distinct from every other path after canonicalisation and from every other path's lock/quarantine sibling name, and not the retired chain file (X7); REQUIRED when readers.gate1Scope OR a frame is declared (X22); and across a SIGHUP reload it may not be added, moved or removed — the book is opened only at start, so changing it takes a restart."
+        },
+        "clerkStamps": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "value",
+            "basis"
+          ],
+          "description": "ACT B, THE ONLY paths KEY THAT IS AN ENVELOPE AND THE ONLY ONE NAMING ANOTHER PRINCIPAL'S OUTPUT. Added 2026-10-02 because the GENERIC SCHEMA<->LOADER PARITY WALK found it missing: the loader accepted it from 2026-09-28 and this schema forbade it, so THE LIVE SERVED DECLARATION FAILED THIS SCHEMA (measured with jsonschema 4.10.3 / Draft202012Validator: exactly one error, at paths/clerkStamps). Nothing caught it because every schema test validates the FIXTURE, and the fixture does not declare this key. It is excluded from patternProperties above: the other eight stay PLAIN STRINGS (the arbiter, 2026-09-28) and that rule would reject this object.",
+          "properties": {
+            "value": {
+              "type": "string",
+              "pattern": "^/var/lib/mica(-bridge)?/[A-Za-z0-9_./-]+$",
+              "description": "BOTH READ ROOTS, mirroring the loader's READ_PATH_VALUE_PATTERN. The eight required paths are files this bridge WRITES, so they are confined to /var/lib/mica-bridge/; this one is an INPUT written by the clerk carrier under /var/lib/mica/. NOT EXPRESSIBLE HERE: the loader also refuses any symlink component and re-applies this pattern to the LEXICALLY CANONICALISED form, so a path this schema admits may still be refused at load. The schema is the weaker gate by construction."
+            },
+            "basis": {
+              "type": "string",
+              "minLength": 80,
+              "description": "The loader requires at least 80 characters AFTER trim(); JSON Schema minLength counts untrimmed, so a whitespace-padded basis passes here and is refused at load."
+            }
+          }
+        },
+        "witnessIntake": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "value",
+            "basis"
+          ],
+          "description": "TIER 1 · OPTIONAL. The WITNESS'S INTAKE: a directory the witness's seeing half owns (its own uid) and only the bridge's group may write. The bridge drops one ATTEMPT pointer (carrying the plain canonical target — 'the plain target to the witness only', audit 2026-10-10 18:03Z) and one CLOSE pointer per act whose claimed target lies in a frame category. Absent: the bridge drops nothing. NOT EXPRESSIBLE HERE, ENFORCED BY THE LOADER: no symlink component; the pattern re-applied to the canonical form; distinct from every declared path (X7). Read per act, so a reload may change it.",
+          "properties": {
+            "value": {
+              "type": "string",
+              "pattern": "^/var/lib/mica/[A-Za-z0-9_][A-Za-z0-9_./-]*$",
+              "description": "Under /var/lib/mica/ ONLY (cross-field rule W1): the witness's directory, never the bridge's."
+            },
+            "basis": {
+              "type": "string",
+              "minLength": 80,
+              "description": "At least 80 characters after trim(): this path names ANOTHER PRINCIPAL'S directory or file (the witness's), and says why it is trusted — the clerkStamps envelope's rule."
+            }
+          }
+        },
+        "witnessBook": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "value",
+            "basis"
+          ],
+          "description": "TIER 1 · OPTIONAL. The WITNESS'S BOOK OF EFFECTS: a chained file the witness's seeing half writes and every role reads. Gate 2 reads it only when readers.gate2Direction.book says so. NOT EXPRESSIBLE HERE, ENFORCED BY THE LOADER: one .jsonl file (W2), never inside paths.witnessIntake (W2), never readers.logPath (W3, X23's twin), its .lock/.quarantine siblings no other path (W4).",
+          "properties": {
+            "value": {
+              "type": "string",
+              "pattern": "^/var/lib/mica/[A-Za-z0-9_][A-Za-z0-9_./-]*$",
+              "description": "Under /var/lib/mica/ ONLY (cross-field rule W1)."
+            },
+            "basis": {
+              "type": "string",
+              "minLength": 80,
+              "description": "At least 80 characters after trim(): this path names ANOTHER PRINCIPAL'S directory or file (the witness's), and says why it is trusted — the clerkStamps envelope's rule."
+            }
+          }
+        }
+      }
+    },
+    "frame": {
+      "type": "object",
+      "additionalProperties": false,
+      "minProperties": 1,
+      "description": "GATE 1 · THE DECLARED M-FRAME, keyed by subjects[].subject (Stop 2). OPTIONAL: absent, the loaded declaration carries no frame key, hashes exactly as before this field existed, and the bridge writes no label. Declared or not, TOOL_ATTEMPTED's own outcome on the subject chain stays the toolName (round 2, placement D): labels go to the interest book (paths.interestBook); nothing in the bridge's code but Gate 1 reads it, and the loader's X23 keeps readers.logPath off it. NOT EXPRESSIBLE HERE, ENFORCED BY THE LOADER (X16): every key must be a DECLARED subject — this schema admits any identifier-shaped key except \"__proto__\" (R-a, refused here and by the loader: canonical-json would drop it from the hash), the loader refuses one that names no subject. minProperties 1: an EMPTY frame ({}) would move declarationHash and declare nothing, so both schema and loader refuse it; omit the key instead.",
+      "patternProperties": {
+        "^(?!__proto__(?![\\s\\S]))[A-Za-z0-9_.:-]+(?![\\s\\S])": {
+          "$ref": "#/$defs/subjectFrame"
+        }
+      }
+    },
+    "baskets": {
+      "type": "object",
+      "additionalProperties": false,
+      "minProperties": 1,
+      "description": "GATE 2 · THE DEPLOYER-DECLARED BASKET, keyed by subjects[].subject (Stop 2, build contract §4). OPTIONAL: absent, the loaded declaration carries no baskets key and hashes exactly as before this field existed. The classes are the DEPLOYER's: a self-serving basket buys the read it declares (05a:217), and damage in undeclared ways reads clean (05a:216) — the reader prints both ceilings on every verdict. NOT EXPRESSIBLE HERE, ENFORCED BY THE LOADER: every key a DECLARED subject with a frame (R1); damage and unknown not both empty (R2); every kind a kind the subject chain carries (R3); no HELD_THEN_* kind in value (R4); no sunset kind in any list (R5); no MICA-output, bookkeeping or second-party kind (R6, F4); no subject-writable kind above EG-1 (R7); no damage entry on a subject-writable kind (R8; S206's ticket flips it, which alone does not let Gate 2 alarm — the exit is a value kind at EG >= 2); weight lo <= hi (R9); latchClearedBy only the arbiter's record, ARBITER_RESOLVED (R11, ruling F5); every bearsOn id a category of frame[subject] (R12); one record, one class across the three lists (R13); and across a SIGHUP reload the reader is neither removed nor moved and a declared basket is FROZEN — any change takes a restart (R15, RMBA V/D §16). minProperties 1: an EMPTY map moves declarationHash and declares nothing.",
+      "patternProperties": {
+        "^(?!__proto__(?![\\s\\S]))[A-Za-z0-9_.:-]+(?![\\s\\S])": {
+          "$ref": "#/$defs/subjectBasket"
+        }
+      }
+    },
+    "harm": {
+      "type": "object",
+      "additionalProperties": false,
+      "minProperties": 1,
+      "description": "GATE 2 · THE DEPLOYER-DECLARED HARM STANZA, keyed by subjects[].subject (Long Run A Stop 2, contract B1). OPTIONAL: absent, the loaded declaration carries no harm key and hashes exactly as before this field existed. NOT EXPRESSIBLE HERE, ENFORCED BY THE LOADER: every key a DECLARED subject with a frame (H1); readers.gate2Direction declared on the witness's book with its method (H8); never beside baskets[subject] for the Gate-2 subject (H9). minProperties 1: an EMPTY map moves declarationHash and declares nothing.",
+      "patternProperties": {
+        "^(?!__proto__(?![\\s\\S]))[A-Za-z0-9_.:-]+(?![\\s\\S])": {
+          "$ref": "#/$defs/subjectHarm"
+        }
+      }
+    }
+  },
+  "$defs": {
+    "declaredNumber": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "value",
+        "basis",
+        "proxy"
+      ],
+      "properties": {
+        "value": {
+          "type": "number"
+        },
+        "basis": {
+          "type": "string",
+          "minLength": 1
+        },
+        "proxy": {
+          "type": "boolean"
+        }
+      }
+    },
+    "declaredString": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "value",
+        "basis",
+        "proxy"
+      ],
+      "properties": {
+        "value": {
+          "type": "string",
+          "minLength": 1
+        },
+        "basis": {
+          "type": "string",
+          "minLength": 1
+        },
+        "proxy": {
+          "type": "boolean"
+        }
+      }
+    },
+    "declaredStringList": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "value",
+        "basis",
+        "proxy"
+      ],
+      "properties": {
+        "value": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "basis": {
+          "type": "string",
+          "minLength": 1
+        },
+        "proxy": {
+          "type": "boolean"
+        }
+      }
+    },
+    "declaredEventMap": {
+      "$comment": "C9 - an eventType -> eventType[] map (mica-machine PreconditionMap / ReentryMap, sig/index.ts:71,:97). minProperties 1 and minItems 1 are deliberate: SigConfig treats an EMPTY map exactly like an absent one (the scope reads UNREAD), so an empty map here would be a field that looks configured and reads as nothing. Refused loudly instead.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "value",
+        "basis",
+        "proxy"
+      ],
+      "properties": {
+        "value": {
+          "type": "object",
+          "minProperties": 1,
+          "propertyNames": {
+            "type": "string",
+            "minLength": 1
+          },
+          "additionalProperties": {
+            "type": "array",
+            "minItems": 1,
+            "uniqueItems": true,
+            "items": {
+              "type": "string",
+              "minLength": 1
+            }
+          }
+        },
+        "basis": {
+          "type": "string",
+          "minLength": 1
+        },
+        "proxy": {
+          "type": "boolean"
+        }
+      }
+    },
+    "declaredEventClass": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "value",
+        "basis",
+        "proxy"
+      ],
+      "description": "An (moduleId, eventType) class in the standard envelope, used by readers.nodeResponse.expectationClass / .responseClass (op3) and by readers.doctorCadence.attestationClass (op1). The instruments compare the PAIR, so the pair is one declared value; splitting it into sibling strings would let a declaration name half a class. Both members are required and non-empty and both must match the identifier pattern, which is what validateDeclaredEventClass applies at load: a whitespace-only member reads as unusable at the instrument and falls to a CANNOT_ASSESS that says the profile is vacuous — a declaration that looks configured and reads as nothing. THIS IS THE ONLY DEFINITION; the bundle line and the opa line each wrote one and the merge keeps this one.",
+      "properties": {
+        "value": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "moduleId",
+            "eventType"
+          ],
+          "properties": {
+            "moduleId": {
+              "type": "string",
+              "minLength": 1,
+              "pattern": "^[A-Za-z0-9_.:-]+$"
+            },
+            "eventType": {
+              "type": "string",
+              "minLength": 1,
+              "pattern": "^[A-Za-z0-9_.:-]+$"
+            }
+          }
+        },
+        "basis": {
+          "type": "string",
+          "minLength": 1
+        },
+        "proxy": {
+          "type": "boolean"
+        }
+      }
+    },
+    "subjectFrame": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "categories",
+        "regions"
+      ],
+      "description": "One subject's declared M-frame (Gate 1, Stop 2). categories IS M; regions is a declared PROXY mapping path prefixes to categories, used by the bridge to derive each TOOL_ATTEMPTED's label from the act's own claimed target. ⛔ A REGION IS NOT OWNERSHIP AND A LABEL IS NOT WEIGHT: the label is ATTEMPTED EXPOSURE OF A DECLARED REGION (S160: owner ≠ who matters; attempted ≠ changed). NOT EXPRESSIBLE HERE, ENFORCED BY THE LOADER: unique category ids; no id equal to any subjects[].toolName (X17); EXACTLY ONE self:true (X18); unique region prefixes; every prefix equal to its own canonical form under the bridge's target canonicaliser (R-b: NFC, no surrounding Unicode whitespace, no C0 or DEL control character (C1 controls such as U+0085 are NOT refused), at most 512 bytes — JSON Schema cannot state NFC); no segment the label rule reads as not a path (a ':' anywhere, a leading '-', '+' or '~', or a shell metacharacter — round 3, a dead region otherwise); every region's category a declared id (X19); and across a SIGHUP reload, no framed subject loses its frame and no category leaves M (X21: the brief's widen-only deployment rule, not a canon placement).",
+      "properties": {
+        "categories": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "value",
+            "basis",
+            "proxy"
+          ],
+          "properties": {
+            "value": {
+              "type": "array",
+              "minItems": 2,
+              "description": "M. At least two: a one-category frame has no distribution to read.",
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "id",
+                  "label",
+                  "grounding",
+                  "self"
+                ],
+                "properties": {
+                  "id": {
+                    "type": "string",
+                    "minLength": 1,
+                    "pattern": "^(?!UNDERIVED(?![\\s\\S]))[A-Za-z0-9_.:-]+(?![\\s\\S])",
+                    "description": "Never the underived word (UNDERIVED): it is written for an act placed in no region, and a category of that name would count those acts as its cases. Ends in (?![\\s\\S]), not $ (round 3, A7), so a trailing newline is refused under Python's re as under the loader."
+                  },
+                  "label": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "grounding": {
+                    "enum": [
+                      "vulnerability",
+                      "agency",
+                      "need"
+                    ],
+                    "description": "Required. A DECLARED TAG (R-d): the word names the trait-space the deployer says this category grounds in. The schema and the loader check the WORD only, never that the category grounds operationally as 03a §6 asks — an untagged category is refused, a hollow (purely symbolic) one tagged with any of the three words is NOT detected, and F10 is not closed by this field."
+                  },
+                  "self": {
+                    "type": "boolean",
+                    "description": "EXACTLY ONE category in M is self (loader, X18): the FAIL floor is defined on it. It is NOT READ today — it needs weight."
+                  }
+                }
+              }
+            },
+            "basis": {
+              "type": "string",
+              "minLength": 1
+            },
+            "proxy": {
+              "type": "boolean"
+            }
+          }
+        },
+        "regions": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "value",
+            "basis",
+            "proxy"
+          ],
+          "properties": {
+            "value": {
+              "type": "array",
+              "description": "MAY BE EMPTY: then nothing is derivable and every label is UNDERIVED, which is legal and honest. Matching is segment-aware and the LONGEST prefix wins; glob metacharacters are literal.",
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "prefix",
+                  "category"
+                ],
+                "properties": {
+                  "prefix": {
+                    "type": "string",
+                    "pattern": "^(?:/(?![\\s\\S])|(?![\\s\\S]*//)(?![\\s\\S]*/\\.\\.?(?:/|(?![\\s\\S])))/[\\s\\S]*[^/](?![\\s\\S]))",
+                    "description": "Exactly \"/\", or an absolute path with no \"//\", no \".\" or \"..\" segment and no trailing \"/\" — the same rule as the loader's framePrefixDefect. The bridge matches against a canonical target that does NOT resolve \".\"/\"..\" (no filesystem access), so a region spelt through them would claim a place it is not. NOT EXPRESSIBLE HERE, ENFORCED BY THE LOADER (R-b): the prefix must EQUAL its own canonical form under the bridge's target canonicaliser — NFC, no surrounding (Unicode) whitespace, no C0 or DEL control character, at most 512 bytes — or it would be a dead region, or a second spelling the hash cannot tell from the first. AND (round 3, loader only): no segment the label rule reads as not a path — a ':' anywhere, a leading '-', '+' or '~', or a shell metacharacter — because every target under such a prefix reads UNDERIVED and the region would be dead while counted derivable."
+                  },
+                  "category": {
+                    "type": "string",
+                    "minLength": 1,
+                    "pattern": "^[A-Za-z0-9_.:-]+(?![\\s\\S])"
+                  }
+                }
+              }
+            },
+            "basis": {
+              "type": "string",
+              "minLength": 1
+            },
+            "proxy": {
+              "type": "boolean"
+            }
+          }
+        }
+      }
+    },
+    "subjectBasket": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "classes",
+        "epsilonNum",
+        "grades",
+        "window",
+        "nMin",
+        "latchClearedBy"
+      ],
+      "description": "One subject's Gate 2 basket (contract §4). The moduleId of every class key is the stanza's own key, set by the bridge BY USE and never declared. ⛔ $defs ORDER IS LOAD-BEARING FOR THE SUITE: this def precedes gate2Grade, gate2SignedClass and gate2UnknownClass so the schema-parity walk records their first concrete sites (inside this def) before it probes them.",
+      "properties": {
+        "classes": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "value",
+            "basis",
+            "proxy"
+          ],
+          "properties": {
+            "value": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "value",
+                "damage",
+                "unknown"
+              ],
+              "properties": {
+                "value": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/$defs/gate2SignedClass"
+                  },
+                  "description": "SIGNED value classes. Never a HELD_THEN_* kind (R4, loader)."
+                },
+                "damage": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/$defs/gate2SignedClass"
+                  },
+                  "description": "SIGNED damage classes. While GATE2_SUBJECT_WRITABLE_DAMAGE_REFUSED holds, no entry on a subject-writable kind loads (R8, loader) — S206's ticket flips it (R8 alone; it does not let Gate 2 alarm: no admissible value class is credited at creditAt EG-2)."
+                },
+                "unknown": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/$defs/gate2UnknownClass"
+                  },
+                  "description": "NAMED classes whose sign is not known (RMBA V/D §6: UNKNOWN is not zero). damage and unknown may not BOTH be empty (R2, loader)."
+                }
+              }
+            },
+            "basis": {
+              "type": "string",
+              "minLength": 1
+            },
+            "proxy": {
+              "type": "boolean"
+            }
+          },
+          "description": "The three class lists. A record matches at most one class across them (R13, loader)."
+        },
+        "epsilonNum": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/declaredNumber"
+            },
+            {
+              "properties": {
+                "value": {
+                  "type": "number",
+                  "minimum": 0
+                }
+              }
+            }
+          ],
+          "description": "A finite TOLERANCE >= 0 (RMBA V/D §7 default 1e-6), not a materiality knob (R10)."
+        },
+        "grades": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "value",
+            "basis",
+            "proxy"
+          ],
+          "properties": {
+            "value": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "establishAt",
+                "creditAt"
+              ],
+              "properties": {
+                "establishAt": {
+                  "$ref": "#/$defs/gate2Grade"
+                },
+                "creditAt": {
+                  "$ref": "#/$defs/gate2Grade"
+                }
+              }
+            },
+            "basis": {
+              "type": "string",
+              "minLength": 1
+            },
+            "proxy": {
+              "type": "boolean"
+            }
+          },
+          "description": "establishAt: damage counts toward ALARM only at or above it. creditAt: value counts toward SILENT only at or above it AND through the CVG (R10)."
+        },
+        "window": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "value",
+            "basis",
+            "proxy"
+          ],
+          "properties": {
+            "value": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "kind"
+              ],
+              "properties": {
+                "kind": {
+                  "const": "sinceBoundary"
+                }
+              }
+            },
+            "basis": {
+              "type": "string",
+              "minLength": 1
+            },
+            "proxy": {
+              "type": "boolean"
+            }
+          },
+          "description": "The ONLY window built this stop. A trailing window is unbuilt: its interaction with the latch is not designed (R10)."
+        },
+        "nMin": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/declaredNumber"
+            },
+            {
+              "properties": {
+                "value": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 9007199254740991
+                }
+              }
+            }
+          ],
+          "description": "A positive integer: fewer classed records than this reads CANNOT_ASSESS(G2_STARVED) (R10)."
+        },
+        "latchClearedBy": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "value",
+            "basis",
+            "proxy"
+          ],
+          "properties": {
+            "value": {
+              "type": "array",
+              "minItems": 1,
+              "uniqueItems": true,
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "kind"
+                ],
+                "properties": {
+                  "kind": {
+                    "type": "string",
+                    "pattern": "^[A-Z][A-Z0-9_]*(?![\\s\\S])"
+                  }
+                }
+              }
+            },
+            "basis": {
+              "type": "string",
+              "minLength": 1
+            },
+            "proxy": {
+              "type": "boolean"
+            }
+          },
+          "description": "The kinds whose record clears a latched ALARM. NOT EXPRESSIBLE HERE, ENFORCED BY THE LOADER (R11): only the arbiter's record, ARBITER_RESOLVED (ruling F5) — never a kind the subject may post."
+        }
+      }
+    },
+    "gate2Grade": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "lane",
+        "eg"
+      ],
+      "description": "A grade threshold: lane A (measured) > B (inferred) > C (scenario); EG-0 anecdote … EG-3 audit.",
+      "properties": {
+        "lane": {
+          "enum": [
+            "A",
+            "B",
+            "C"
+          ]
+        },
+        "eg": {
+          "type": "integer",
+          "enum": [
+            0,
+            1,
+            2,
+            3
+          ]
+        }
+      }
+    },
+    "gate2SignedClass": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind",
+        "outcome",
+        "weight",
+        "lane",
+        "eg",
+        "rhoCausal",
+        "falsifiability",
+        "bearsOn",
+        "basis"
+      ],
+      "description": "A value[] or damage[] class: SIGNED, so weighted, with a causal coefficient and a stated falsifier. NOT EXPRESSIBLE HERE, ENFORCED BY THE LOADER: weight.lo <= weight.hi (R9).",
+      "properties": {
+        "kind": {
+          "type": "string",
+          "pattern": "^[A-Z][A-Z0-9_]*(?![\\s\\S])",
+          "description": "A subject-chain kind. NOT EXPRESSIBLE HERE, ENFORCED BY THE LOADER: a member of mica-service's SUBJECT_EVENT_KINDS (R3), not a sunset kind (R5), not an F4 kind (R6); EG-1 at most if the subject's own uid may POST it (R7). TIER 1: on a basket Gate 2 reads on the WITNESS'S BOOK the kind is CONSEQUENCE and nothing else (R3 re-scoped), at EG-1 at most (R7's twin) — the R6/F4 carve-out for the witness's observation, scoped to that kind on that book."
+        },
+        "outcome": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9_.:-]+(?![\\s\\S])"
+            }
+          ],
+          "description": "null = any outcome of the kind; otherwise one outcome word. REQUIRED: there is no default."
+        },
+        "weight": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "lo",
+            "hi"
+          ],
+          "properties": {
+            "lo": {
+              "type": "number",
+              "minimum": 0
+            },
+            "hi": {
+              "type": "number",
+              "minimum": 0
+            }
+          }
+        },
+        "lane": {
+          "enum": [
+            "A",
+            "B",
+            "C"
+          ]
+        },
+        "eg": {
+          "type": "integer",
+          "enum": [
+            0,
+            1,
+            2,
+            3
+          ]
+        },
+        "rhoCausal": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "falsifiability": {
+          "type": "string",
+          "minLength": 1
+        },
+        "bearsOn": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "pattern": "^[A-Za-z0-9_.:-]+(?![\\s\\S])"
+          },
+          "description": "Frame category ids this class bears on. NOT EXPRESSIBLE HERE, ENFORCED BY THE LOADER (R12): each a category of frame[subject]."
+        },
+        "basis": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "gate2UnknownClass": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind",
+        "outcome",
+        "lane",
+        "eg",
+        "bearsOn",
+        "basis"
+      ],
+      "description": "An unknown[] class: NAMED, never weighted (RMBA V/D §6). It carries no weight, rhoCausal or falsifiability (R9). An unknown with records in the window and no magnitude is UNBOUNDED.",
+      "properties": {
+        "kind": {
+          "type": "string",
+          "pattern": "^[A-Z][A-Z0-9_]*(?![\\s\\S])",
+          "description": "A subject-chain kind. NOT EXPRESSIBLE HERE, ENFORCED BY THE LOADER: a member of mica-service's SUBJECT_EVENT_KINDS (R3), not a sunset kind (R5), not an F4 kind (R6); EG-1 at most if the subject's own uid may POST it (R7). TIER 1: on a basket Gate 2 reads on the WITNESS'S BOOK the kind is CONSEQUENCE and nothing else (R3 re-scoped), at EG-1 at most (R7's twin) — the R6/F4 carve-out for the witness's observation, scoped to that kind on that book."
+        },
+        "outcome": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9_.:-]+(?![\\s\\S])"
+            }
+          ],
+          "description": "null = any outcome of the kind; otherwise one outcome word. REQUIRED: there is no default."
+        },
+        "lane": {
+          "enum": [
+            "A",
+            "B",
+            "C"
+          ]
+        },
+        "eg": {
+          "type": "integer",
+          "enum": [
+            0,
+            1,
+            2,
+            3
+          ]
+        },
+        "magnitude": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "hi"
+          ],
+          "properties": {
+            "hi": {
+              "type": "number",
+              "exclusiveMinimum": 0
+            }
+          },
+          "description": "OPTIONAL sign-free magnitude bound."
+        },
+        "bearsOn": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "pattern": "^[A-Za-z0-9_.:-]+(?![\\s\\S])"
+          },
+          "description": "Frame category ids this class bears on. NOT EXPRESSIBLE HERE, ENFORCED BY THE LOADER (R12): each a category of frame[subject]."
+        },
+        "basis": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "subjectHarm": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "harmOnly",
+        "origins",
+        "items",
+        "grants",
+        "clearances"
+      ],
+      "description": "One subject's Gate 2 HARM stanza (Long Run A Stop 2, contract B1). Replaces the class basket for the Gate-2 subject (H9). Every refusal H1-H10 is the loader's; the ones JSON Schema cannot state are named on each field.",
+      "properties": {
+        "harmOnly": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "value",
+            "basis",
+            "proxy"
+          ],
+          "description": "The explicit flag (H2): exactly true.",
+          "properties": {
+            "value": {
+              "const": true
+            },
+            "basis": {
+              "type": "string",
+              "minLength": 1
+            },
+            "proxy": {
+              "type": "boolean"
+            }
+          }
+        },
+        "origins": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "value",
+            "basis",
+            "proxy"
+          ],
+          "description": "Origins by id (H3, H10). At least one, and (loader) one bound to readers.gate2Direction.subject.",
+          "properties": {
+            "value": {
+              "type": "object",
+              "additionalProperties": false,
+              "minProperties": 1,
+              "patternProperties": {
+                "^[A-Za-z0-9_-]{1,32}(?![\\s\\S])": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "subject",
+                    "basis"
+                  ],
+                  "description": "One origin: the principal the bridge binds an act to (W-O, O1), never the human or errand behind it.",
+                  "properties": {
+                    "subject": {
+                      "type": "string",
+                      "minLength": 1,
+                      "description": "A declared subjects[].subject (H3, loader)."
+                    },
+                    "basis": {
+                      "type": "string",
+                      "minLength": 1
+                    }
+                  }
+                }
+              }
+            },
+            "basis": {
+              "type": "string",
+              "minLength": 1
+            },
+            "proxy": {
+              "type": "boolean"
+            }
+          }
+        },
+        "items": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "value",
+            "basis",
+            "proxy"
+          ],
+          "description": "Items by id (H4, H10). The deployer's basket of protected things; a self-serving basket buys a flattering read (05a:217).",
+          "properties": {
+            "value": {
+              "type": "object",
+              "additionalProperties": false,
+              "minProperties": 1,
+              "patternProperties": {
+                "^[A-Za-z0-9_-]{1,32}(?![\\s\\S])": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "path",
+                    "category",
+                    "control",
+                    "basis"
+                  ],
+                  "properties": {
+                    "path": {
+                      "type": "string",
+                      "pattern": "^/",
+                      "description": "ONE exact canonical absolute path (F-10). NOT EXPRESSIBLE HERE, ENFORCED BY THE LOADER (H4): equal to its own canonicalisation, unchanged by the one-pair quote strip, placed by the writer's own deriver in a region of its declared category, that category not self, no two items one path."
+                    },
+                    "category": {
+                      "type": "string",
+                      "minLength": 1,
+                      "description": "A category id of frame[subject] (H4, loader)."
+                    },
+                    "control": {
+                      "type": "boolean",
+                      "description": "true: the deployer measured that the subject cannot change it; it alarms only on another writer (F-9)."
+                    },
+                    "basis": {
+                      "type": "string",
+                      "minLength": 1
+                    }
+                  }
+                }
+              }
+            },
+            "basis": {
+              "type": "string",
+              "minLength": 1
+            },
+            "proxy": {
+              "type": "boolean"
+            }
+          }
+        },
+        "grants": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "value",
+            "basis",
+            "proxy"
+          ],
+          "description": "Grant lists by item id (H5): every item has one, none for an undeclared item.",
+          "properties": {
+            "value": {
+              "type": "object",
+              "additionalProperties": false,
+              "patternProperties": {
+                "^[A-Za-z0-9_-]{1,32}(?![\\s\\S])": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "origins",
+                    "since",
+                    "basis"
+                  ],
+                  "properties": {
+                    "origins": {
+                      "type": "array",
+                      "uniqueItems": true,
+                      "items": {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      "description": "Origin ids that may change the item; [] grants nobody. Every id a declared origin (H5, loader)."
+                    },
+                    "since": {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "patternProperties": {
+                        "^[A-Za-z0-9_-]{1,32}(?![\\s\\S])": {
+                          "type": "string",
+                          "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}\\.\\d{3}Z$"
+                        }
+                      },
+                      "description": "S216: originId -> the UTC instant from which that origin's grant counts; exactly the origins listed ({} for []). A record earlier than its since is harm whatever the grant now says. Across a reload a since may only move later (H11 c')."
+                    },
+                    "basis": {
+                      "type": "string",
+                      "minLength": 1
+                    }
+                  }
+                }
+              }
+            },
+            "basis": {
+              "type": "string",
+              "minLength": 1
+            },
+            "proxy": {
+              "type": "boolean"
+            }
+          }
+        },
+        "clearances": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "value",
+            "basis",
+            "proxy"
+          ],
+          "description": "C1 clearances under the doctor's hat (H7): each names one witness record; [] clears nothing.",
+          "properties": {
+            "value": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "record",
+                  "hat",
+                  "basis"
+                ],
+                "properties": {
+                  "record": {
+                    "type": "string",
+                    "pattern": "^[0-9a-f]{64}(?![\\s\\S])",
+                    "description": "The witness record's own hash field. Unique (H7, loader)."
+                  },
+                  "hat": {
+                    "const": "doctor"
+                  },
+                  "basis": {
+                    "type": "string",
+                    "minLength": 1
+                  }
+                }
+              }
+            },
+            "basis": {
+              "type": "string",
+              "minLength": 1
+            },
+            "proxy": {
+              "type": "boolean"
+            }
+          }
+        },
+        "errand": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "value",
+            "basis",
+            "proxy"
+          ],
+          "description": "S208-2 (H12): OPTIONAL. Which frame categories an arbiter's errand may grant (never a self category) and the longest window; absent = no errand grants anything. Across a reload it may only narrow (H11 g).",
+          "properties": {
+            "value": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "categories",
+                "maxWindowMinutes"
+              ],
+              "properties": {
+                "categories": {
+                  "type": "array",
+                  "minItems": 1,
+                  "uniqueItems": true,
+                  "items": {
+                    "type": "string",
+                    "minLength": 1
+                  }
+                },
+                "maxWindowMinutes": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 1440
+                }
+              }
+            },
+            "basis": {
+              "type": "string",
+              "minLength": 1
+            },
+            "proxy": {
+              "type": "boolean"
+            }
+          }
+        }
+      }
+    }
+  }
+}

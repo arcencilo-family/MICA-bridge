@@ -1,0 +1,333 @@
+{
+  "schemaVersion": 1,
+  "readers": {
+    "readableLoadStates": {
+      "value": [
+        "LOADED_VERIFIED",
+        "LOADED_UNVERIFIED_FILE"
+      ],
+      "basis": "EXAMPLE TEXT, invented for documentation; a deployer replaces it with their own decision. This example WIDENS the readable load states beyond the recommended default ([\"LOADED_VERIFIED\"] only, src/mica/types.ts) to also admit LOADED_UNVERIFIED_FILE, because the plain-file log adapter (src/glue/mica-log-file.ts) never reports LOADED_VERIFIED (its own header says it has not earned it and never will); with the narrow list, Eng and Sig would always read CANNOT_ASSESS(NON_CLEAN_LOAD_STATE) whatever the log contained. STATED AT ITS TRUE WIDTH: a plain JSONL file carries no hash chain, so nothing in the reading path can tell an untouched file from one rewritten between two reads. Accepting LOADED_UNVERIFIED_FILE means a reading is taken from a source whose chain nobody verified: a tampered log reads as clean content, indistinguishable from an honest one. That does not mean the log IS tampered, only that nothing here would know either way. LOADED_VERIFIED stays in the list so a chained source (logKind \"witness\") still reads when one exists; the widening is additive. It is a pilot concession, owed for repair once records are carried into a genuinely chained, durable store. The exposure is disclosed here and printed on the reading's own face at /status and /guard, never left to live only in this field.",
+      "proxy": false
+    },
+    "logPath": {
+      "value": "/var/lib/mica-bridge/subject-events.jsonl",
+      "basis": "EXAMPLE TEXT, invented for documentation; a deployer replaces it. The example declares the one log the bridge itself writes (its own subject-event log), not another service's log. Another principal's book on the same host might be readable by the bridge's service account through a shared group, and would still be the wrong choice for this field: it is not this bridge's own log, and a planted-fault alarm test needs a log the test can write, which a foreign book is not. DISCLOSED GAP, stated plainly: the plain-file adapter (src/glue/mica-log-file.ts) expects each line shaped {sequenceNumber, timestamp, moduleId, eventType, outcome, actionId?}, whereas the bridge's own subject-event log is shaped {subjectSeq, ts, identity, kind, eventHash, payload?, peerUid}. Declaring this path makes Eng and Sig wired, but every line fails record parsing, so they read CANNOT_ASSESS from zero readable records, never SILENT and never a real ALARM from live content. SECOND GAP: even a correctly shaped file would read CANNOT_ASSESS(NON_CLEAN_LOAD_STATE) under a readableLoadStates list of [\"LOADED_VERIFIED\"] alone, because the adapter can only report LOADED_UNVERIFIED_FILE. Closing both (a bridge-written, test-writable log in the expected grammar, plus a load-state decision that admits it) is later-stage scope, named here as owed.",
+      "proxy": true
+    },
+    "logKind": {
+      "value": "mica",
+      "basis": "EXAMPLE TEXT, invented for documentation; a deployer replaces it. This example declares logKind \"mica\" so that tests reading it exercise the claim a deployment would serve, not a shape nobody runs. A deployer must decide which kind their log really is, and should check that the declared kind matches what the running service reports on /status; this example does not settle which kind is right and must not be read as settling it.",
+      "proxy": true
+    },
+    "eng": {
+      "structureThreshold": {
+        "value": 0,
+        "basis": "PROXY: src/mica/eng/index.ts:129-137 states no default and no range, and that where 'collapsed' begins is a calibration question for pilot data. 0 is the least-firing end of the adjusted-mutual-information scale, chosen so no Eng ALARM can be manufactured by an uncalibrated number during Phase A.",
+        "proxy": true
+      },
+      "minimumSampleSize": {
+        "value": 1024,
+        "basis": "PROXY: src/mica/eng/index.ts:141-147 states REQUIRED, no default, and no recommended value exists anywhere in the tree. 1024 is an invented example value, not the frozen worked example's; at Phase A the housekeeper's chain is far below it, so Eng reads CANNOT_ASSESS (INSUFFICIENT_SAMPLE) — the bootstrap-blind state Phase A expects, declared rather than stumbled into.",
+        "proxy": true
+      }
+    },
+    "sig": {
+      "clockToleranceMs": {
+        "value": 0,
+        "basis": "Verbatim from config/sig-config.json (mica-machine c69ac57): sig.clockToleranceMs = 0. Carried unchanged, not re-derived.",
+        "proxy": true
+      },
+      "clockToleranceBasis": {
+        "value": "PROXY: asserted one box one clock, NOT measured",
+        "basis": "Verbatim from config/sig-config.json (mica-machine c69ac57): sig.clockToleranceBasis. This string is what Sig F1 prints; the envelope records that it was copied from that file and not restated.",
+        "proxy": true
+      },
+      "preconditionMap": {
+        "value": {
+          "TOOL_EXECUTED": [
+            "TOOL_ATTEMPTED"
+          ],
+          "TOOL_RESULT": [
+            "TOOL_EXECUTED"
+          ],
+          "TOOL_HELD_NOT_EXECUTED": [
+            "TOOL_ATTEMPTED"
+          ]
+        },
+        "basis": "PROXY. THE BRIDGE WRITES SEVEN eventTypes (mica-service.ts SUBJECT_EVENT_KINDS); THIS MAP GOVERNS FOUR OF THEM, AND THE OMISSION IS THE DECLARATION, NOT AN OVERSIGHT. The four LIFECYCLE kinds (TOOL_ATTEMPTED, TOOL_EXECUTED, TOOL_RESULT, TOOL_HELD_NOT_EXECUTED) are mapped to the prior each one requires. The three POST-HOLD CONDUCT kinds (HELD_THEN_STOPPED, HELD_THEN_RETRIED, HELD_THEN_DIVERGED, added for R1) are DELIBERATELY ABSENT FROM BOTH SIG MAPS. Absence is free and exact: runF2Positive filters to entries whose eventType is an own-property of this map (sig/index.ts:672-674) and detectReentry skips any entry not keyed in the reentry map (:744), so a kind in neither map is SILENTLY IGNORED BY F2 and Sig's reading of this log is byte-identical to what it was before the three kinds existed. The inverse is what had to be avoided and is recorded in the reentryMap basis below. The rest of this basis is unchanged and still describes the four it governs. DECLARED SO F2 CAN READ AT ALL, NOT BECAUSE IT WATCHES ANYTHING: absent or empty, SigConfig reads MISSING_CONFIGURATION, F2's scope is a blind path, and Sig's composite goes CANNOT_ASSESS over a perfectly parsed log. IT IS NOT A LIVE DETECTOR, and the reason is at bytes: sig/index.ts:697-701 asks whether a required prior appears ANYWHERE EARLIER IN THE CHAIN (`entries.some(prior => prior.sequenceNumber < entry.sequenceNumber && required.includes(prior.eventType))`), not whether it appears for THIS act. So after the first TOOL_ATTEMPTED ever written to a log, every later TOOL_EXECUTED is satisfied forever. It can alarm on a log's first records and never again. Register E3 carries this; end condition is a per-actionId precondition check in mica-machine.",
+        "proxy": true
+      },
+      "reentryMap": {
+        "value": {
+          "TOOL_ATTEMPTED": [
+            "TOOL_RESULT",
+            "TOOL_HELD_NOT_EXECUTED"
+          ]
+        },
+        "basis": "PROXY. TOOL_ATTEMPTED is the ENTER; TOOL_RESULT and TOOL_HELD_NOT_EXECUTED are the CLEARS, AND THAT CLEAR-LIST IS CLOSED. RULE, BINDING ON EVERY FUTURE KIND: a kind may be added to a reentryMap clear-list ONLY IF it is written on a path where the entering act is PROVABLY finished. On this caller exactly two such paths exist (claude-bot.ts:379 and :390). Every kind added since is written on a path where the attempt may still be open, so NO NEW KIND MAY BE A CLEAR — including the three post-hold conduct kinds (HELD_THEN_STOPPED, HELD_THEN_RETRIED, HELD_THEN_DIVERGED) added for R1, and including HELD_THEN_STOPPED in particular, which is the tempting one: an agent that stopped has not resolved anything, and reading it as a clear would make an unresolved attempt followed by the agent falling silent read CLEAN. A new false CLEAR here does not add a wrong alarm; it SILENCES THE ONE SIGNAL ON THIS LOG THAT CAN ALARM ON SOMETHING REAL, which is the worse direction and the harder one to notice. THIS IS THE ONE SIGNAL ON THIS LOG THAT CAN ALARM ON SOMETHING REAL: an attempt that never resolves raises SIG_F2_STATE_ALREADY_ACTIVE at the NEXT attempt (sig/index.ts detectReentry). WHAT AN ALARM HERE MEANS, AT TRUE WIDTH — three states arm it, and they are not equally meaningful. (i) the caller was killed MID-TOOL, between the awaited TOOL_ATTEMPTED drain and the outbox append of its result. (ii) a closing event was REJECTED by /subject-events, dead-lettered AND ACKed (mica-client drain, ruling L(ii)), so it never reached this log — the caller was alive and behaved correctly. (iii) the caller's appendOutbox for a closing event failed and nobody checked the return value (claude-bot.ts:378/:379, unlike :367 which does) — again a healthy caller. ALL THREE ARE TRUE POSITIVES ABOUT THE RECORD: in every one, an act's outcome was never recorded, and holding rather than passing blind over it is correct. ONLY (i) IS A TRUE POSITIVE ABOUT THE AGENT. A reader who sees this code and concludes the agent did something is wrong two times in three. THE ALARM LATCHES: detectReentry recomputes findings over the WHOLE file on every evaluation, and any finding sets F2 to ALARM, so the floor is ALARM and mapFloorToDisposition returns HOLD with blindSplit NOT_APPLICABLE — the stakes line is never consulted and the pilot cannot rescue it. Every act is held until the offending records leave the file; recovery is to rotate the subject log, which is possible because rotation is a root file operation and not a tool call. The recovery act is in the C9 receipt. KNOWN LIMIT: detectReentry's fold is GLOBAL — it ignores moduleId and actionId — so it is correct for ONE sequential subject only; a second subject or concurrent tool calls will false-alarm. Register E4; end condition is a per-action fold in mica-machine. (iii) is register E15 and is deliberately NOT fixed here: it is a caller edit and the caller has no custody relay, register A1.",
+        "proxy": true
+      }
+    },
+    "gate2Direction": {
+      "subject": {
+        "value": "housekeeper",
+        "basis": "EXAMPLE ONLY: invented for documentation, not a measurement; a deployer replaces it.",
+        "proxy": false
+      },
+      "book": {
+        "value": "witnessBook",
+        "basis": "EXAMPLE ONLY: invented for documentation, not a measurement; a deployer replaces it.",
+        "proxy": false
+      },
+      "witnessMethod": {
+        "value": "bd91dc37fa7e5d0653c795c4878266a4482c1405d932ce0b073d50b5bce41b72",
+        "basis": "EXAMPLE ONLY: invented for documentation, not a measurement; a deployer replaces it.",
+        "proxy": false
+      }
+    }
+  },
+  "stakes": {
+    "lineClasses": [
+      "routine",
+      "advisory",
+      "state_changing",
+      "bash",
+      "irreversible"
+    ],
+    "baseline": {
+      "holdAtOrAbove": {
+        "value": "state_changing",
+        "basis": "PROXY: index 2 of lineClasses, at or below bash (index 3), so stakesSplit(bash, baseline) returns ABOVE_LINE and a CANNOT_ASSESS floor maps to HOLD_BLIND (src/mica/chokepoint/types.ts:205-210, :247-253). The standing Phase A line: nothing at or above a state change passes blind.",
+        "proxy": true
+      }
+    }
+  },
+  "subjects": [
+    {
+      "subject": "housekeeper",
+      "toolName": "bash",
+      "stakesClass": "bash",
+      "peerUid": 5101
+    }
+  ],
+  "routes": [
+    {
+      "uid": 5101,
+      "role": "subject",
+      "allow": [
+        {
+          "method": "POST",
+          "path": "/guard"
+        },
+        {
+          "method": "POST",
+          "path": "/subject-events"
+        }
+      ]
+    },
+    {
+      "uid": 5102,
+      "role": "alerter",
+      "allow": [
+        {
+          "method": "GET",
+          "path": "/events"
+        },
+        {
+          "method": "GET",
+          "path": "/status"
+        }
+      ]
+    },
+    {
+      "uid": 5103,
+      "role": "operator",
+      "allow": [
+        {
+          "method": "GET",
+          "path": "/status"
+        },
+        {
+          "method": "GET",
+          "path": "/log"
+        },
+        {
+          "method": "GET",
+          "path": "/events"
+        },
+        {
+          "method": "GET",
+          "path": "/explain"
+        }
+      ]
+    }
+  ],
+  "pilot": {
+    "active": true,
+    "sessionId": "pilot-2026-09-20-01",
+    "expiresAt": "2026-09-27T18:00:00Z",
+    "holdAtOrAbove": {
+      "value": "irreversible",
+      "basis": "PROXY, ruling I and ruling M: the PASS-BLIND pilot regime. `irreversible` is the non-assignable sentinel rung declared at index 4 of stakes.lineClasses; no subjects[] entry may carry it, so it exists only as a line position. With the line here, stakesSplit(\"bash\", line) returns BELOW_LINE (index 3 < index 4) and a CANNOT_ASSESS floor maps to PASS_BLIND rather than HOLD_BLIND (src/mica/chokepoint/types.ts:199-203, :253-257). This is a time-bounded override of the baseline `state_changing`, not a change to it; on expiresAt the override ceases to apply and the baseline governs again, including across a restart.",
+      "proxy": true
+    }
+  },
+  "notice": {
+    "window": {
+      "value": 1,
+      "basis": "PROXY: --notice-window is documented in src/glue/mica-guard.ts USAGE as notices per this many PASS-BLIND events and must be a positive integer (mica-guard.ts parseArgs, --notice-window branch). 1 is the only value under which Stage 4's pre-registered expectation — one PASS_BLIND_NOTICE for one pass-blind act — is satisfiable.",
+      "proxy": true
+    },
+    "maxPerMinute": {
+      "value": 6,
+      "basis": "PROXY: no rate is stated anywhere in the tree. 6 is one message per ten seconds, chosen as the largest rate at which a human reading Telegram can still attend to each message individually; the backlog rule (delay or coalesce, never advance the cursor past an unsent event) is what makes the number non-lossy.",
+      "proxy": true
+    }
+  },
+  "subjectLog": {
+    "maxUnacknowledged": {
+      "value": 10,
+      "basis": "PROXY, AMENDMENT 9 / RULING Q. No default is stated anywhere in the tree. 10 is chosen as a small round number, above notice.maxPerMinute (6) so a single busy minute of legitimate traffic cannot alone trip STALE, but bounded far below any count that would let an unacknowledged backlog grow silently — the threshold at which /status stops saying the stream is merely retry-behind and starts saying it is STALE.",
+      "proxy": true
+    },
+    "chainBoundary": {
+      "retiredPath": {
+        "value": "/var/lib/mica-bridge/example-subject-events.PENDING-ROTATION.jsonl",
+        "basis": "PLACEHOLDER — NOT A MEASUREMENT. This fixture exists so the loader tests have a draft to read that still LOADS: Act A made subjectLog.chainBoundary required and X15 refuses an empty retiredPath, both of which postdate the historical placeholder. Nothing here was measured against any log.",
+        "proxy": true
+      },
+      "retiredRecords": {
+        "value": 1,
+        "basis": "PLACEHOLDER — NOT A MEASUREMENT. This fixture exists so the loader tests have a draft to read that still LOADS: Act A made subjectLog.chainBoundary required and X15 refuses an empty retiredPath, both of which postdate the historical placeholder. Nothing here was measured against any log.",
+        "proxy": true
+      },
+      "retiredBytes": {
+        "value": 1,
+        "basis": "PLACEHOLDER — NOT A MEASUREMENT. This fixture exists so the loader tests have a draft to read that still LOADS: Act A made subjectLog.chainBoundary required and X15 refuses an empty retiredPath, both of which postdate the historical placeholder. Nothing here was measured against any log.",
+        "proxy": true
+      },
+      "retiredSha256": {
+        "value": "0000000000000000000000000000000000000000000000000000000000000000",
+        "basis": "PLACEHOLDER — NOT A MEASUREMENT. This fixture exists so the loader tests have a draft to read that still LOADS: Act A made subjectLog.chainBoundary required and X15 refuses an empty retiredPath, both of which postdate the historical placeholder. Nothing here was measured against any log.",
+        "proxy": true
+      }
+    }
+  },
+  "paths": {
+    "journal": "/var/lib/mica-bridge/example-decision-journal.jsonl",
+    "eventBook": "/var/lib/mica-bridge/example-events.jsonl",
+    "subjectLog": "/var/lib/mica-bridge/example-subject-events.jsonl",
+    "decisionEvents": "/var/lib/mica-bridge/example-decision-events.jsonl",
+    "floorTrail": "/var/lib/mica-bridge/example-floor-trail.jsonl",
+    "ledger": "/var/lib/mica-bridge/example-pass-blind-ledger.jsonl",
+    "history": "/var/lib/mica-bridge/example-substrate-history.jsonl",
+    "noticeDir": "/var/lib/mica-bridge/example-notices",
+    "interestBook": "/var/lib/mica-bridge/example-interest-book.jsonl",
+    "witnessIntake": {
+      "value": "/var/lib/mica/example-witness-sight/intake",
+      "basis": "EXAMPLE ONLY: invented for documentation, not a measurement; a deployer replaces it."
+    },
+    "witnessBook": {
+      "value": "/var/lib/mica/example-witness-sight/book-of-effects.jsonl",
+      "basis": "EXAMPLE ONLY: invented for documentation, not a measurement; a deployer replaces it."
+    }
+  },
+  "frame": {
+    "housekeeper": {
+      "categories": {
+        "value": [
+          {
+            "id": "c-self",
+            "label": "own working area",
+            "grounding": "agency",
+            "self": true
+          },
+          {
+            "id": "c-other",
+            "label": "another principal's area",
+            "grounding": "vulnerability",
+            "self": false
+          }
+        ],
+        "basis": "EXAMPLE ONLY: invented for documentation, not a measurement; a deployer replaces it.",
+        "proxy": true
+      },
+      "regions": {
+        "value": [
+          {
+            "prefix": "/srv/example-subject/work",
+            "category": "c-self"
+          },
+          {
+            "prefix": "/srv/example-subject/other",
+            "category": "c-other"
+          }
+        ],
+        "basis": "EXAMPLE ONLY: invented for documentation, not a measurement; a deployer replaces it.",
+        "proxy": true
+      }
+    }
+  },
+  "harm": {
+    "housekeeper": {
+      "harmOnly": {
+        "value": true,
+        "basis": "EXAMPLE ONLY: invented for documentation, not a measurement; a deployer replaces it.",
+        "proxy": false
+      },
+      "origins": {
+        "value": {
+          "o-sub": {
+            "subject": "housekeeper",
+            "basis": "EXAMPLE ONLY: invented for documentation, not a measurement; a deployer replaces it."
+          }
+        },
+        "basis": "EXAMPLE ONLY: invented for documentation, not a measurement; a deployer replaces it.",
+        "proxy": false
+      },
+      "items": {
+        "value": {
+          "i-kept": {
+            "path": "/srv/example-subject/other/kept.txt",
+            "category": "c-other",
+            "control": false,
+            "basis": "EXAMPLE ONLY: invented for documentation, not a measurement; a deployer replaces it."
+          },
+          "i-granted": {
+            "path": "/srv/example-subject/other/granted.txt",
+            "category": "c-other",
+            "control": false,
+            "basis": "EXAMPLE ONLY: invented for documentation, not a measurement; a deployer replaces it."
+          }
+        },
+        "basis": "EXAMPLE ONLY: invented for documentation, not a measurement; a deployer replaces it.",
+        "proxy": true
+      },
+      "grants": {
+        "value": {
+          "i-kept": {
+            "origins": [],
+            "since": {},
+            "basis": "EXAMPLE ONLY: invented for documentation, not a measurement; a deployer replaces it."
+          },
+          "i-granted": {
+            "origins": [
+              "o-sub"
+            ],
+            "since": {
+              "o-sub": "2026-01-01T00:00:00.000Z"
+            },
+            "basis": "EXAMPLE ONLY: invented for documentation, not a measurement; a deployer replaces it."
+          }
+        },
+        "basis": "EXAMPLE ONLY: invented for documentation, not a measurement; a deployer replaces it.",
+        "proxy": false
+      },
+      "clearances": {
+        "value": [],
+        "basis": "EXAMPLE ONLY: invented for documentation, not a measurement; a deployer replaces it.",
+        "proxy": false
+      }
+    }
+  }
+}

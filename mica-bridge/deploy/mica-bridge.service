@@ -1,0 +1,156 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# mica-bridge.service — Stage 2, infrastructure half only
+#
+# NOT INSTALLED BY THIS FILE. Installing it (and its first start) is the
+# arbiter's act, by hand, as root, AFTER `relay-bridge.sh` has laid
+# `/opt/mica-bridge` (see that script; it is what actually populates
+# /opt/mica-bridge/mica-bridge/*):
+#
+#   sudo install -m 0644 -o root -g root \
+#     deploy/mica-bridge.service /etc/systemd/system/mica-bridge.service
+#   sudo systemctl daemon-reload
+#   sudo systemctl start mica-bridge
+#   sudo -u mica-bridge /usr/bin/node \
+#     /opt/mica-machine/node_modules/ts-node/dist/bin.js \
+#     -P /opt/mica-bridge/mica-bridge/tsconfig.json \
+#     /opt/mica-bridge/mica-bridge/mica-service.ts --check   # read the banner first
+#
+# ── RUNTIME CUSTODY (Stage 0 verifier F1) ────────────────────────────────────
+#
+# ExecStart below names an ABSOLUTE Node binary, never `#!/usr/bin/env node`
+# resolution: this box's system PATH gives `/usr/bin/node`, and `readlink -f
+# /usr/bin/node` on this box resolves to ITSELF (a real ELF binary, not a
+# symlink into nvm) at v18.19.1 — verified this session. The builder's own
+# interactive shell runs nvm's v22.22.0, which a systemd unit never sees
+# (units do not source a user's shell start files or nvm's shell init). Using `env node` here
+# would silently run a DIFFERENT Node than whatever the receipt/verifier
+# tested against. The Stage 2 receipt records both versions and this
+# ExecStart's absolute paths so the unit and the verifier are provably the
+# same interpreter.
+#
+# ExecStart's ts-node entrypoint is mica-machine's own pinned dependency
+# (`/opt/mica-machine/node_modules/ts-node/dist/bin.js`, verified to
+# exist this session) — NOT a citadel-local node_modules, because citadel
+# has none (Stage 0's own finding, unchanged). This means /opt/mica-machine
+# must be laid (relayed) BEFORE /opt/mica-bridge starts; that ordering is
+# named, not enforced by this file (RequiresMountsFor names a state
+# directory, not a sibling release tree — see the header's note above).
+#
+# `mica-service.ts` uses only Node core (`http`, `fs`, `path`, `crypto`
+# transitively via canonical-json.ts) and no syntax requiring Node >= 20 —
+# `URL`, optional chaining, and nullish coalescing are all available since
+# Node 14. It runs correctly under v18.19.1 (exercised directly this
+# session, receipt records the command).
+#
+# ── RULING K, AMENDED (the arbiter, 2026-09-18 ~20:5x, "Ruling (b) it is") ────────
+#
+# There is NO single canonical socket for this service. `mica-bridge.socket`
+# (a systemd `.socket` unit) is RETIRED — deleted from this directory, not
+# merely unused. Peer identity is per-caller Unix sockets under filesystem
+# permissions: the service itself creates and binds one socket per declared
+# `routes[]` uid, at `/run/mica-bridge/peers/<uid>/guard.sock`, and identifies
+# the peer by WHICH of those sockets accepted the connection — never a
+# queried credential (Node core cannot read `SO_PEERCRED`; a native addon was
+# declined). See `peer-auth.ts`'s header for the mechanism and its one stated
+# residual (root can connect to any of them; X10 forbids a uid-0 route).
+#
+# `RuntimeDirectory=mica-bridge` below is the PARENT of every per-uid socket
+# directory (`/run/mica-bridge/`, recreated on every boot since `/run` is
+# tmpfs) — it is not a socket-activation directory and no `.socket` unit
+# points at it. The per-uid subdirectories THEMSELVES
+# (`/run/mica-bridge/peers/<uid>/`, each owned `<uid>:mica-bridge` mode 0770)
+# are recreated on every boot by `deploy/mica-bridge.tmpfiles.conf`
+# (`systemd-tmpfiles`, installed separately — see that file's header) because
+# this service's own `User=mica-bridge` has no privilege to chown a directory
+# to a different uid; tmpfiles.d runs as root before this unit starts.
+# ─────────────────────────────────────────────────────────────────────────────
+
+[Unit]
+Description=MICA bridge service (per-caller Unix sockets; /guard evaluates through the machine)
+Documentation=file:///opt/mica-bridge/mica-bridge/mica-service.ts
+RequiresMountsFor=/var/lib/mica-bridge
+
+[Service]
+Type=simple
+User=mica-bridge
+Group=mica-bridge
+
+WorkingDirectory=/opt/mica-bridge
+
+# The pinned in-tree ts-node binary, DIRECTLY, never npx — the same idiom as
+# mica-proxy.service / mica-witnessd.service (the machine tree's deploy/). The
+# absolute Node binary is /usr/bin/node (see header); the ts-node entrypoint
+# is mica-machine's dependency, not citadel's (citadel has no node_modules).
+ExecStart=/usr/bin/node /opt/mica-machine/node_modules/ts-node/dist/bin.js -P /opt/mica-bridge/mica-bridge/tsconfig.json /opt/mica-bridge/mica-bridge/mica-service.ts
+
+Environment=MICA_BRIDGE_DECLARATIONS=/opt/mica-bridge/mica-bridge/declarations.config.json
+Environment=MICA_BRIDGE_SOCKET_DIR=/run/mica-bridge
+
+ExecReload=/bin/kill -HUP $MAINPID
+Restart=on-failure
+
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=yes
+StateDirectory=mica-bridge
+#
+# NO RuntimeDirectory= — DELIBERATELY REMOVED (S136, 2026-09-20, ruled by the arbiter
+# at the terminal during Stage 4 / F-4, before this unit had ever started once).
+#
+# This line used to read `RuntimeDirectory=mica-bridge`. On systemd 255 (this
+# box, read against its own systemd.exec(5) this session) that directive does
+# two things this design cannot survive:
+#
+#   1. "If the specified directories already exist and their owning user or
+#      group do not match the configured ones, ALL FILES AND DIRECTORIES BELOW
+#      the specified directories as well as the directories themselves will
+#      have their file ownership RECURSIVELY CHANGED to match what is
+#      configured."  /run/mica-bridge is root:root (tmpfiles.d); this unit runs
+#      as mica-bridge:mica-bridge. They do not match. So the FIRST start would
+#      have recursively chowned peers/980 (mica-housekeeper), peers/981
+#      (mica-alerter) and peers/1000 (the operator account) to one single owner —
+#      DISSOLVING RULING K. Peer identity IS the ownership of peers/<uid>: the
+#      door you could reach, not the claim you made. One owner, no doors. And
+#      /status would have gone on reporting guardBound: true throughout.
+#
+#   2. RuntimeDirectoryPreserve= defaults to `no`: "the directories specified
+#      in RuntimeDirectory= are ALWAYS REMOVED when the service stops." The
+#      first stop — or the restart at the end of relay-bridge.sh — would have
+#      deleted the whole peer tree, which this service, being non-root, can
+#      never rebuild with the correct per-uid owners.
+#
+# Neither is reachable by any test in this repo: every test runs in a temp tree
+# the tester owns, where a recursive chown to the tester changes nothing
+# observable. mica-service.test.ts:1407 even models
+# {path: "/run/mica-bridge", owner: "mica-bridge", group: "mica-bridge"} as a
+# FAILURE case — it asserts against the tmpfiles DECLARATION, while the unit
+# would have produced exactly that state at RUNTIME. The test had the right
+# property and the wrong artifact.
+#
+# The per-uid peer socket subdirectories (/run/mica-bridge/peers/<uid>/) and
+# their parents are created before this unit starts by
+# deploy/mica-bridge.tmpfiles.conf via systemd-tmpfiles, run as root — see the
+# header above ("RULING K, AMENDED") and that file's own header. That file is
+# now the SOLE authority on this tree; systemd must not second-guess it.
+#
+# ReadWritePaths=/run/mica-bridge below is what RuntimeDirectory= was silently
+# ALSO providing: ProtectSystem=strict mounts "the entire file system hierarchy
+# read-only, except for the API file system subtrees /dev/, /proc/ and /sys/",
+# so without that path named here the service could not bind its sockets at
+# all. It grants the NAMESPACE write only; DAC still applies, so mica-bridge
+# can bind inside peers/<uid> (group mica-bridge, 0770) but CANNOT create new
+# peer directories under peers/ (0711 root:root). That asymmetry is the point:
+# root decides which doors exist, the service only answers at them.
+#
+# mica-service.ts does not read $RUNTIME_DIRECTORY; it resolves the socket root
+# itself (mica-service.ts:1241). Nothing else depended on the directive.
+ReadWritePaths=/var/lib/mica-bridge /run/mica-bridge
+PrivateTmp=yes
+
+UMask=0027
+
+# NO [Install] SECTION (Amendment 3 / verifier F6). The brief requires none
+# for this unit — the arbiter installs and starts it by hand each time, not via
+# `systemctl enable`. A prior version of this file carried
+# `[Install]\nWantedBy=multi-user.target`, found and removed at the
+# verifier's gate; it was never ruled and should not have been here.

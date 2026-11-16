@@ -1,0 +1,76 @@
+[
+  {
+    "id": "mica-bridge-peers-dir-mode",
+    "family": "file-mode",
+    "path": "/run/mica-bridge/peers",
+    "mode": "0711"
+  },
+  {
+    "id": "mica-bridge-peers-dir-acl",
+    "family": "acl-entry",
+    "path": "/run/mica-bridge/peers",
+    "entry": "user::rwx",
+    "owner": "root",
+    "group": "root"
+  },
+  {
+    "id": "mica-bridge-peers-980-owner",
+    "family": "file-owner",
+    "path": "/run/mica-bridge/peers/980",
+    "owner": "mica-housekeeper"
+  },
+  {
+    "id": "mica-bridge-peers-980-mode",
+    "family": "file-mode",
+    "path": "/run/mica-bridge/peers/980",
+    "mode": "0770"
+  },
+  {
+    "id": "mica-bridge-peers-980-acl",
+    "family": "acl-entry",
+    "path": "/run/mica-bridge/peers/980",
+    "entry": "user::rwx",
+    "owner": "mica-housekeeper",
+    "group": "mica-bridge"
+  },
+  {
+    "id": "mica-bridge-peers-981-owner",
+    "family": "file-owner",
+    "path": "/run/mica-bridge/peers/981",
+    "owner": "mica-alerter"
+  },
+  {
+    "id": "mica-bridge-peers-981-mode",
+    "family": "file-mode",
+    "path": "/run/mica-bridge/peers/981",
+    "mode": "0770"
+  },
+  {
+    "id": "mica-bridge-peers-981-acl",
+    "family": "acl-entry",
+    "path": "/run/mica-bridge/peers/981",
+    "entry": "user::rwx",
+    "owner": "mica-alerter",
+    "group": "mica-bridge"
+  },
+  {
+    "id": "mica-bridge-peers-1000-owner",
+    "family": "file-owner",
+    "path": "/run/mica-bridge/peers/1000",
+    "owner": "USER"
+  },
+  {
+    "id": "mica-bridge-peers-1000-mode",
+    "family": "file-mode",
+    "path": "/run/mica-bridge/peers/1000",
+    "mode": "0770"
+  },
+  {
+    "id": "mica-bridge-peers-1000-acl",
+    "family": "acl-entry",
+    "path": "/run/mica-bridge/peers/1000",
+    "entry": "user::rwx",
+    "owner": "USER",
+    "group": "mica-bridge"
+  }
+]

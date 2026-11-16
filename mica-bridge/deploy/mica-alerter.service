@@ -1,0 +1,101 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# mica-alerter.service — Stage 3.
+#
+# mica-alerter.py now exists (this file's sibling, mica-bridge/mica-alerter.py).
+# Installing this unit and starting it are still the arbiter's acts (arbiter-only:
+# unit installs, relays — brief §2); this file is the template those acts
+# consume, matching memu-bridge/ilas-alerter.py's role and this repo's
+# existing unit conventions.
+#
+# Env var names below match mica-alerter.py's own `require_env*` calls
+# exactly — read that file's module docstring before changing any of them.
+# The Stage 2 placeholder guessed `MICA_ALERTER_CURSOR` (a full file path);
+# Stage 3 instead derives the cursor path from `MICA_ALERTER_STATE_DIR`
+# (StateDirectory=mica-alerter below) + a fixed filename, so the alerter
+# never needs a second env var pointing at the same directory it already
+# has. Corrected here, not appended.
+#
+# Amendment 1 (verifier findings 4 and 6, 2026-09-19):
+#   - mica-alerter.py is now committed mode 100755 — this unit's ExecStart
+#     invokes it directly (no interpreter named), so a non-executable file
+#     would fail every start. `git ls-files -s mica-bridge/mica-alerter.py`
+#     must show `100755`; a test asserts it.
+#   - `[Install]` REMOVED. It was present here (copied from a systemd-unit
+#     habit, not from a ruling) and would let `systemctl enable` pull the
+#     alerter — and therefore, via `Requires=mica-bridge.service`, the
+#     bridge itself — up at boot with no human in the loop, contradicting
+#     this unit's own "the arbiter installs and starts it by hand" story above
+#     and the pattern `deploy/mica-bridge.service` already follows (that
+#     unit's own `[Install]` was removed under Stage 2 verifier F6). UNLIKE
+#     the bridge unit, this removal has never been put to the arbiter as a
+#     ruling — it is this builder's correction, not an arbiter decision.
+#     Recorded as an open question in this stage's receipt; until answered,
+#     treat "no [Install], arbiter starts by hand" as the working default.
+# ─────────────────────────────────────────────────────────────────────────────
+
+[Unit]
+Description=MICA bridge alerter — Telegram on bridge events and relay.markerPresent
+Documentation=file:///opt/mica-bridge/mica-bridge/mica-alerter.py
+After=mica-bridge.service
+Requires=mica-bridge.service
+RequiresMountsFor=/var/lib/mica-alerter
+
+[Service]
+Type=simple
+User=mica-alerter
+Group=mica-alerter
+# Group membership that OPENS the per-uid socket at
+# /run/mica-bridge/peers/981/guard.sock (981 = mica-alerter's own uid, per
+# the ruled declaration) is that uid's OWN identity, not a supplementary
+# group — see peer-auth.ts's mechanism. SupplementaryGroups=mica-callers is
+# kept here anyway as a declaration of intent in case the mechanism moves
+# back to a shared-socket + real SO_PEERCRED design later (a native addon,
+# fork option (a)) — it is harmless either way.
+SupplementaryGroups=mica-callers
+
+WorkingDirectory=/opt/mica-bridge
+
+ExecStart=/opt/mica-bridge/mica-bridge/mica-alerter.py
+
+EnvironmentFile=/etc/mica-bridge/alerter.env
+# alerter.env (root:mica-alerter 0640, per ruling) holds MICA_TG_TOKEN ONLY —
+# no other secret, and nothing below duplicates it.
+
+# Peer socket this alerter connects on (uid 981's own peer directory, per
+# declarations.config.json routes[] — GET /events, GET /status only).
+Environment=MICA_BRIDGE_SOCKET=/run/mica-bridge/peers/981/guard.sock
+
+# Poll interval, seconds. notice.window-independent (brief §3 Stage 3);
+# 30s matches memu-bridge/ilas-alerter.py's own POLL_INTERVAL.
+Environment=MICA_ALERTER_POLL_SECONDS=30
+
+# Cursor lives at $MICA_ALERTER_STATE_DIR/alerter-cursor.json — StateDirectory=
+# below supplies the directory itself (mica-alerter:mica-alerter 0750).
+Environment=MICA_ALERTER_STATE_DIR=/var/lib/mica-alerter
+
+# Mirrors declarations.config.json's notice.maxPerMinute.value (currently 6,
+# proxy declared, basis in that file). The alerter reads this from its own
+# env rather than parsing declarations.config.json directly (brief leaves
+# the mechanism to this builder) — keeping the two in sync on any change to
+# the declaration is the deployer's responsibility.
+Environment=MICA_ALERTER_MAX_PER_MINUTE=6
+
+# Not a secret — the chat mica-alerter posts to. The arbiter fills the real id
+# before this unit is installed. CHANGEME is a KNOWN placeholder that
+# mica-alerter.py's own main() refuses at startup by name (Amendment 1,
+# verifier finding 6) — exit 2, nothing polled, nothing silently accepted —
+# rather than relying on Telegram to eventually 400 on it.
+Environment=MICA_TG_CHAT_ID=CHANGEME
+
+Restart=on-failure
+
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=yes
+StateDirectory=mica-alerter
+ReadWritePaths=/var/lib/mica-alerter
+PrivateTmp=yes
+
+UMask=0027
+
+# No [Install] section — see the Amendment 1 note in this file's header.
